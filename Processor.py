@@ -47,52 +47,23 @@ def detect_background_brightness(img, sample_center=False):
 
 def to_grayscale(img, method="weighted"):  
     b, g, r = cv2.split(img)
+    
     if method == "weighted":
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    elif method == "average":
+    
+    if method == "average":
         return ((r + g + b) / 3).astype(np.uint8)
-    elif method == "max":
+    
+    if method == "max":
         return np.maximum(np.maximum(r, g), b)
-    elif method == "min":
+    
+    if method == "min":
         return np.minimum(np.minimum(r, g), b)
-    elif method == "luminosity":
+    
+    if method == "luminosity":
         return (0.21 * r + 0.72 * g + 0.07 * b).astype(np.uint8)
-    else:
-        raise ValueError(f"Unknown method: {method}")
-
-def execute(path): 
-    original_img = load_imgs(path)
-    visualize(original_img, title="original")
     
-    brightness, _ = detect_background_brightness(original_img)
-    
-    method = ""
-    th = 0
-    ksize = 0
-    elemsize = 0
-
-    if brightness == "light":
-        method = "average"
-        th = 75
-        ksize = 11
-        elemsize = 8
-    else:
-        return
-        method = "max"
-        th = 15
-        ksize = 11
-        elemsize = 8
-    
-    gray = to_grayscale(original_img, method)
-    visualize(gray, title="original")
-
-    mask, var_map = detect_mold_texture(gray, th, ksize, elemsize)
-        #cv2.imshow("Texture Variance", var_map)
-    visualize(original_img, mask)
-
-    #cv2.imshow("Texture Variance", var_map)
-    #cv2.imshow("Mold Mask", mask)
-
+    raise ValueError(f"Unknown method: {method}")
 
 def visualize(img, mask=None, title="Mold Candidates Overlay"):
     display = img.copy()
@@ -109,6 +80,24 @@ def visualize(img, mask=None, title="Mold Candidates Overlay"):
     plt.imshow(cv2.cvtColor(display, cv2.COLOR_BGR2RGB))
     plt.show()
 
+def visualize_multimg(img1, img2, t1="Image-1", t2="Image-2"):
+    disp1 = img1.copy()
+    disp2 = img2.copy()
+
+    plt.figure(figsize=(14, 6))
+
+    plt.subplot(1, 2, 1)
+    plt.title(t1)
+    plt.axis('off')
+    plt.imshow(cv2.cvtColor(disp1, cv2.COLOR_BGR2RGB))
+
+    plt.subplot(1, 2, 2)
+    plt.title(t2)
+    plt.axis('off')
+    plt.imshow(cv2.cvtColor(disp2, cv2.COLOR_BGR2RGB))
+
+    plt.tight_layout()
+    plt.show()
 
 def segmentation(img, n_segments=250, compactness=20):
     # using SLIC algo for segmentation
@@ -153,32 +142,42 @@ def refine_mask(mask):
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
     return mask
 
-def run(path):
+def execute(path): 
     original_img = load_imgs(path)
-    #visualize_img(original_img)
+    
+    brightness, _ = detect_background_brightness(original_img)
 
-    processed_img = preprocess(original_img)
-    #visualize_img(processed_img)
+    method = ""
+    th = 0
+    ksize = 0
+    elemsize = 0
 
-    slic_segments = segmentation(processed_img)
-    #visualize_segments(original_img, slic_segments)
+    if brightness == "light":
+        method = "average"
+        th = 75
+        ksize = 11
+        elemsize = 8
+    else:
+        method = "max"
+        th = 15
+        ksize = 11
+        elemsize = 8
+    
+    gray = to_grayscale(original_img, method)
+    visualize(gray, title="original")
 
-    merged_segments = merge_similar_segments(processed_img, slic_segments)
-    #visualize_segments(original_img, merged_segments)
+    mask, var_map = detect_mold_texture(gray, th, ksize, elemsize)
+        #cv2.imshow("Texture Variance", var_map)
+    visualize(original_img, mask)
 
-    #mold_mask = detect_mold(processed_img)
-
-    mold_mask = analyze_segments(processed_img, merged_segments)
-    mold_mask = refine_mask(mold_mask)
-
-    visualize_img(original_img, mold_mask)
+    #cv2.imshow("Texture Variance", var_map)
+    #cv2.imshow("Mold Mask", mask)'''
 
 def preprocess(img):
     """
     2) IMAGE ENHANCEMENT
     """
     img_smooth = cv2.bilateralFilter(img, d=5, sigmaColor=50, sigmaSpace=50)
-    #img_norm = cv2.normalize(img_smooth, None, 0, 255, cv2.NORM_MINMAX)
     return img_smooth.astype(np.uint8)
 
 def detect_mold(img):

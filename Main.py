@@ -5,7 +5,7 @@ if __name__ == '__main__':
     #GUI = Gui.GUI()
     #GUI.run()
 
-    for i in range (1,10):
+    for i in range (1,4):
         img_path = "./data/" + str(i) + ".jpg"
         #Processor.run(img_path)
         Processor.execute(img_path)

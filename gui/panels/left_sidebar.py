@@ -5,11 +5,14 @@ from ..state import ImageState, AppState
 import os
 
 class LeftSidebar(tk.Frame):
-    def __init__(self, parent, state: AppState, width=380): # Adjusted width
+    def __init__(self, parent, state: AppState, width=380):
         super().__init__(parent, width=width, bg="#f2f2f2")
         self.pack_propagate(False)
 
         self.state = state
+        self.is_collapsed = False
+        self.expanded_width = width
+        self.collapsed_width = 70
         self._img_refs = [] 
 
         self._build_ui()
@@ -17,43 +20,79 @@ class LeftSidebar(tk.Frame):
     # ====================== UI ====================== 
 
     def _build_ui(self):
-        # Top Header
-        header = tk.Frame(self, bg="#f2f2f2")
-        header.pack(fill="x", padx=8, pady=16)
+        # Top Header Area
+        self.top_frame = tk.Frame(self, bg="#f2f2f2")
+        self.top_frame.pack(fill="x", padx=4, pady=8)
         
-        title = tk.Label(header, text="Images", bg="#f2f2f2", fg="#333", font=("Segoe UI", 14, "bold"))
-        title.pack(side="left")
+        # Toggle Button (Left aligned)
+        self.btn_toggle = tk.Button(self.top_frame, text="<<", command=self._toggle_sidebar,
+                                    relief="flat", bg="#e0e0e0", fg="#555", cursor="hand2", width=3)
+        self.btn_toggle.pack(side="left")
 
-        load_btn = tk.Button(header, text=" + ", command=self._load_images, 
-                             relief="flat", bg="#e6e6e6", fg="#222", cursor="hand2", width=4)
-        load_btn.pack(side="right")
+        # Title (Hidden if collapsed)
+        self.lbl_title = tk.Label(self.top_frame, text="Images", bg="#f2f2f2", fg="#333", font=("Segoe UI", 12, "bold"))
+        self.lbl_title.pack(side="left", padx=8)
 
-        # Table Header
-        tbl_head = tk.Frame(self, bg="#e0e0e0")
-        tbl_head.pack(fill="x", padx=8)
-        
-        def h_col(text, weight=1):
-            f = tk.Frame(tbl_head, bg="#e0e0e0")
-            f.pack(side="left", fill="x", expand=(weight>0))
-            tk.Label(f, text=text, bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(anchor="center")
-            
-        h_col("Original", 1) # Fuller width for name
-        h_col("Prep", 0)     # Fixed width mostly
-        h_col("Result", 0)   # Fixed width mostly
+        # Load Button (Right aligned)
+        self.btn_load = tk.Button(self.top_frame, text="+", command=self._load_images, 
+                             relief="flat", bg="#e6e6e6", fg="#222", cursor="hand2", width=3)
+        self.btn_load.pack(side="right")
+
+        # Table Header Frame
+        self.tbl_head = tk.Frame(self, bg="#e0e0e0")
+        self.tbl_head.pack(fill="x", padx=4, pady=(8, 0))
 
         # Scrollable Area
         self.list_container = self._scrollable_container()
 
+    def _update_header(self):
+        # Clear existing header
+        for w in self.tbl_head.winfo_children(): w.destroy()
+        
+        # Configure Top UI based on collapse
+        if self.is_collapsed:
+            self.lbl_title.pack_forget()
+            self.btn_load.pack_forget() # Hide load in collapsed? Or keep small? 
+            # User said "only orig img icons visible".
+            # Let's keep toggle visible.
+            self.btn_toggle.config(text=">>")
+            
+            # Allow load? simplified: hide load for clean look or put below.
+            # Let's hide load to save space/complexity, user can expand to load.
+        else:
+            self.lbl_title.pack(side="left", padx=8)
+            self.btn_load.pack(side="right")
+            self.btn_toggle.config(text="<<")
+
+        # Configure Table Header
+        if self.is_collapsed:
+            # Maybe just "Img" or empty
+            pass 
+        else:
+            # 3 Columns Equal Width
+            self.tbl_head.grid_columnconfigure(0, weight=1, uniform="h_cols") 
+            self.tbl_head.grid_columnconfigure(1, weight=1, uniform="h_cols") 
+            self.tbl_head.grid_columnconfigure(2, weight=1, uniform="h_cols")
+            self.tbl_head.grid_columnconfigure(3, weight=0, minsize=30) 
+            
+            def h_lbl(text, col):
+                f = tk.Frame(self.tbl_head, bg="#e0e0e0", height=24)
+                f.pack_propagate(False)
+                f.grid(row=0, column=col, sticky="nsew", padx=1, pady=1)
+                tk.Label(f, text=text, bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(expand=True)
+
+            h_lbl("Original", 0)
+            h_lbl("Pre", 1)
+            h_lbl("Res", 2)
 
     def _scrollable_container(self):
         outer = tk.Frame(self, bg="#ffffff")
-        outer.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        outer.pack(fill="both", expand=True, padx=4, pady=4)
 
         self.canvas = tk.Canvas(outer, bg="#ffffff", highlightthickness=0)
         scrollbar = tk.Scrollbar(outer, orient="vertical", command=self.canvas.yview)
         
         self.inner = tk.Frame(self.canvas, bg="#ffffff")
-        
         self.inner.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         
         self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
@@ -62,12 +101,10 @@ class LeftSidebar(tk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Width sync
         def _configure_width(event):
             self.canvas.itemconfig(self.canvas.create_window((0,0), window=self.inner, anchor='nw'), width=event.width)
         self.canvas.bind("<Configure>", _configure_width)
 
-        # Mousewheel - Bind on hover
         self.bind("<Enter>", self._bind_wheel)
         self.bind("<Leave>", self._unbind_wheel)
         
@@ -84,6 +121,12 @@ class LeftSidebar(tk.Frame):
 
     # ====================== LOGIC ====================== 
 
+    def _toggle_sidebar(self):
+        self.is_collapsed = not self.is_collapsed
+        target_w = self.collapsed_width if self.is_collapsed else self.expanded_width
+        self.configure(width=target_w)
+        self.refresh()
+
     def _load_images(self):
         paths = filedialog.askopenfilenames(title="Select Images", filetypes=[("Images", "*" + " *".join(EXTS))])
         for path in paths:
@@ -98,6 +141,10 @@ class LeftSidebar(tk.Frame):
              self.state.set_active(len(self.state.images) - 1)
 
     def refresh(self):
+        # Update UI Structure
+        self._update_header()
+        
+        # Clear List
         for w in self.inner.winfo_children(): w.destroy()
         self._img_refs = []
 
@@ -108,67 +155,75 @@ class LeftSidebar(tk.Frame):
         is_active = (index == self.state.active_index)
         bg = "#dfefff" if is_active else "#ffffff"
         
-        row = tk.Frame(self.inner, bg=bg, pady=4, bd=1, relief="flat")
+        row = tk.Frame(self.inner, bg=bg, pady=2, bd=0)
         row.pack(fill="x", pady=1)
+        
+        # Helper for Cell
+        def make_cell(col, width=None):
+            f = tk.Frame(row, bg=bg)
+            if width:
+                f.configure(width=width)
+                f.pack_propagate(False)
+            f.grid(row=0, column=col, sticky="nsew", padx=1)
+            f.bind("<Button-1>", lambda e, i=index: self._set_active(i))
+            return f
 
-        # Column structure using grid inside row for alignment, or pack logic
-        # Pack logic with fixed widths for icons might be easier for alignment
-        
-        # Col 3: Result (Right)
-        # Col 2: Prep (Right)
-        # Col 1: Original (Fill rest)
-        
-        # Helper for Icon Cell
-        def icon_cell(parent, img, side="right"):
-            f = tk.Frame(parent, bg=bg, width=40, height=40)
-            f.pack_propagate(False)
-            f.pack(side=side, padx=4)
-            
-            if img is not None:
-                import cv2
-                from PIL import Image, ImageTk
-                try:
+        def add_icon(parent, img):
+             if img is not None:
+                 import cv2
+                 from PIL import Image, ImageTk
+                 try:
                     thumb_bgr = cv2.resize(img, (32, 32))
                     thumb_rgb = cv2.cvtColor(thumb_bgr, cv2.COLOR_BGR2RGB)
                     thumb_pil = Image.fromarray(thumb_rgb)
                     thumb_tk = ImageTk.PhotoImage(thumb_pil)
                     self._img_refs.append(thumb_tk)
-                    
-                    lbl = tk.Label(f, image=thumb_tk, bg=bg)
+                    lbl = tk.Label(parent, image=thumb_tk, bg=bg)
                     lbl.pack(expand=True)
                     lbl.bind("<Button-1>", lambda e, i=index: self._set_active(i))
-                except: pass
-            return f
+                 except: pass
 
-        # Delete Btn
-        btn_del = tk.Label(row, text="x", bg=bg, fg="#999", cursor="hand2")
-        btn_del.pack(side="right", padx=6)
-        btn_del.bind("<Button-1>", lambda e, i=index: self._delete(i))
+        if self.is_collapsed:
+            # Collapsed Mode: Only Icon, Centered
+            row.grid_columnconfigure(0, weight=1)
+            c0 = make_cell(0)
+            add_icon(c0, img_st.original)
+            
+        else:
+            # Expanded Mode: 3 Cols Equal Width + Delete
+            row.grid_columnconfigure(0, weight=1, uniform="cols") 
+            row.grid_columnconfigure(1, weight=1, uniform="cols") 
+            row.grid_columnconfigure(2, weight=1, uniform="cols")
+            row.grid_columnconfigure(3, weight=0, minsize=30) # Delete
 
-        # Result Icon
-        icon_cell(row, img_st.detected, side="right")
-        
-        # Prep Icon
-        icon_cell(row, img_st.preprocessed, side="right")
+            # C0: Original (Icon + Name) - Wait, per user request "equal widths"
+            # If equal widths, C0 might be too cramped for text + icon if width is divided by 3 (~120px).
+            # Should be OK.
+            c0 = make_cell(0)
+            f_icon = tk.Frame(c0, bg=bg)
+            f_icon.pack(side="left", padx=2)
+            add_icon(f_icon, img_st.original)
+            
+            lbl_name = tk.Label(c0, text=img_st.filename, bg=bg, fg="#222", anchor="w", font=("Segoe UI", 8))
+            lbl_name.pack(side="left", fill="x", expand=True)
+            lbl_name.bind("<Button-1>", lambda e, i=index: self._set_active(i))
 
-        # Original Icon + Text (Left)
-        f_orig = tk.Frame(row, bg=bg)
-        f_orig.pack(side="left", fill="x", expand=True, padx=4)
-        
-        # Orig Icon
-        icon_cell(f_orig, img_st.original, side="left")
-        
-        # Filename
-        lbl_name = tk.Label(f_orig, text=img_st.filename, bg=bg, fg="#222", anchor="w", font=("Segoe UI", 9))
-        lbl_name.pack(side="left", fill="x", expand=True)
-        
-        # Bindings
-        for w in [row, f_orig, lbl_name]:
-            w.bind("<Button-1>", lambda e, i=index: self._set_active(i))
-        
+            # C1: Prep
+            c1 = make_cell(1)
+            add_icon(c1, img_st.preprocessed)
+
+            # C2: Res
+            c2 = make_cell(2)
+            add_icon(c2, img_st.detected)
+
+            # C3: Delete
+            c3 = make_cell(3)
+            btn_del = tk.Label(c3, text="x", bg=bg, fg="#999", cursor="hand2")
+            btn_del.pack(expand=True)
+            btn_del.bind("<Button-1>", lambda e, i=index: self._delete(i))
+
         row.bind("<Enter>", lambda e: row.config(bg="#e8e8e8"))
         row.bind("<Leave>", lambda e: row.config(bg=bg))
-
 
     def _set_active(self, index):
         self.state.set_active(index)

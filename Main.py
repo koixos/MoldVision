@@ -6,7 +6,12 @@ if __name__ == '__main__':
     root = tk.Tk()
     root.tk.call('tk', 'scaling', 1.0)
 
-    app = MoldVisionApp(root)
+    MoldVisionApp(
+        root,
+        preprocess_fn=execute,
+        detect_fn=None
+    )
+    
     root.mainloop()
     
     '''for i in range (1,4):

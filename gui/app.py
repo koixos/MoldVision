@@ -21,11 +21,11 @@ class MoldVisionApp:
         self.left = LeftSidebar(self.master, self.state)
         self.left.pack(side="left", fill="y")    
 
-        self.portfolio = Portfolio(self.master, self.state)
-        self.portfolio.pack(side="left", fill="both", expand=True)
-
         self.right = RightSidebar(self.master, self.state)
         self.right.pack(side="right", fill="y")
+
+        self.portfolio = Portfolio(self.master, self.state)
+        self.portfolio.pack(side="left", fill="both", expand=True)
 
     def active_changed(self):
         self.left.refresh()

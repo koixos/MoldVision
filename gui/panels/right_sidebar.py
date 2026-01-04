@@ -39,6 +39,35 @@ class RightSidebar(tk.Frame):
         self._preprocess_section()
         self._divider()
         self._detect_section()
+        self._divider()
+        self._main_actions()
+
+    def _main_actions(self):
+        frame = tk.Frame(self, bg="#f4f4f4")
+        frame.pack(side="bottom", fill="x", padx=16, pady=16)
+
+        btn_font = ("Segoe UI", 12, "bold")
+        
+        # Preprocess Button
+        tk.Button(
+            frame,
+            text="Preprocess",
+            command=self._preprocess_active, # Reuse existing logic
+            bg="#2196f3", fg="white",
+            relief="flat", font=btn_font,
+            cursor="hand2", height=2
+        ).pack(fill="x", pady=(0, 8))
+
+        # Detect Button
+        tk.Button(
+            frame,
+            text="Detect Mold",
+            command=self._detect_active, # Reuse existing logic
+            bg="#4caf50", fg="white",
+            relief="flat", font=btn_font,
+            cursor="hand2", height=2
+        ).pack(fill="x")
+
 
     def _divider(self):
         tk.Frame(self, height=1, bg="#cccccc").pack(fill="x", padx=16, pady=12)

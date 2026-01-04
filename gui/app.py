@@ -14,6 +14,7 @@ class MoldVisionApp:
         self.state = AppState()
         #self.pipeline = PipelineAdapter((), ())
 
+        self.state.add_listener(self.active_changed)
         self.build_ui()
 
     def build_ui(self):

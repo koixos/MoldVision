@@ -4,29 +4,7 @@ import matplotlib.pyplot as plt
 
 def execute(path): 
     original_img = load_imgs(path)
-    
-    detected_brightness = detect_background_brightness(original_img)
-
-    method = ""
-    th = 0
-    ksize = 0
-    elemsize = 0
-
-    if detected_brightness == "light":
-        method = "average"
-        th = 75
-        ksize = 11
-        elemsize = 8
-    else:
-        method = "max"
-        th = 15
-        ksize = 11
-        elemsize = 8
-    
-    gray = to_grayscale(original_img, method)
-    #visualize(gray, title="original")
-
-    mask, var_map = detect_mold_texture(gray, th, ksize, elemsize)
+    mask = predict_mask(path)
     visualize(original_img, mask)
 
 def load_imgs(path, max_dim=1024):
@@ -149,3 +127,23 @@ def remove_small_objs(mask, min_size=500):
             out[labels == region.label] = 1
     return (out * 255).astype('uint8')
 '''
+
+def predict_mask(path):
+    original_img = load_imgs(path)
+
+    detected_brightness = detect_background_brightness(original_img)
+
+    if detected_brightness == "light":
+        method = "average"
+        th = 75
+        ksize = 11
+        elemsize = 8
+    else:
+        method = "max"
+        th = 15
+        ksize = 11
+        elemsize = 8
+
+    gray = to_grayscale(original_img, method)
+    mask, _ = detect_mold_texture(gray, th, ksize, elemsize)
+    return mask

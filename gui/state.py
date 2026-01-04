@@ -40,6 +40,11 @@ class AppState:
             else:
                 self.active_index = max(0, self.active_index - 1)
             self._notify()
+
+    def clear_images(self):
+        self.images.clear()
+        self.active_index = -1
+        self._notify()
         
     def set_active(self, index: int):
         if 0 <= index < len(self.images):

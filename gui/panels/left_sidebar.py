@@ -65,25 +65,39 @@ class LeftSidebar(tk.Frame):
             self.btn_toggle.config(text="<<")
 
         # Configure Table Header
+        # Configure Table Header
         if self.is_collapsed:
-            # Maybe just "Img" or empty
-            pass 
+            self.tbl_head.grid_columnconfigure(0, weight=1) 
+            for c in [1, 2, 3, 4]: self.tbl_head.grid_columnconfigure(c, weight=0, minsize=0)
+            
+            f = tk.Frame(self.tbl_head, bg="#e0e0e0", bd=1, relief="solid")
+            f.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
+            tk.Label(f, bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(expand=True)
+            
         else:
-            # 3 Columns Equal Width
+            # 3 Columns Equal Width + Delete + Scrollbar Spacer
             self.tbl_head.grid_columnconfigure(0, weight=1, uniform="h_cols") 
             self.tbl_head.grid_columnconfigure(1, weight=1, uniform="h_cols") 
             self.tbl_head.grid_columnconfigure(2, weight=1, uniform="h_cols")
-            self.tbl_head.grid_columnconfigure(3, weight=0, minsize=30) 
+            self.tbl_head.grid_columnconfigure(3, weight=0, minsize=30) # Delete
+            self.tbl_head.grid_columnconfigure(4, weight=0, minsize=17) # Scrollbar Spacer
             
             def h_lbl(text, col):
-                f = tk.Frame(self.tbl_head, bg="#e0e0e0", height=24)
+                f = tk.Frame(self.tbl_head, bg="#e0e0e0", height=24, bd=1, relief="solid")
                 f.pack_propagate(False)
-                f.grid(row=0, column=col, sticky="nsew", padx=1, pady=1)
+                f.grid(row=0, column=col, sticky="nsew", padx=0, pady=0)
                 tk.Label(f, text=text, bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(expand=True)
 
             h_lbl("Original", 0)
             h_lbl("Pre", 1)
             h_lbl("Res", 2)
+            
+            # Spacer for Delete column (empty border)
+            f = tk.Frame(self.tbl_head, bg="#e0e0e0", bd=1, relief="solid") 
+            f.grid(row=0, column=3, sticky="nsew")
+             
+            # Spacer for Scrollbar (invisible)
+            tk.Frame(self.tbl_head, bg="#f2f2f2", width=17).grid(row=0, column=4)
 
     def _scrollable_container(self):
         outer = tk.Frame(self, bg="#ffffff")
@@ -105,16 +119,20 @@ class LeftSidebar(tk.Frame):
             self.canvas.itemconfig(self.canvas.create_window((0,0), window=self.inner, anchor='nw'), width=event.width)
         self.canvas.bind("<Configure>", _configure_width)
 
+        # Fix: Bind to top level to ensure capture
         self.bind("<Enter>", self._bind_wheel)
         self.bind("<Leave>", self._unbind_wheel)
         
         return self.inner
 
     def _bind_wheel(self, event):
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Bind to the entire application/root to catch all mousewheel events when hovering sidebar
+        top = self.winfo_toplevel()
+        top.bind("<MouseWheel>", self._on_mousewheel)
     
     def _unbind_wheel(self, event):
-        self.canvas.unbind_all("<MouseWheel>")
+        top = self.winfo_toplevel()
+        top.unbind("<MouseWheel>")
 
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -158,13 +176,13 @@ class LeftSidebar(tk.Frame):
         row = tk.Frame(self.inner, bg=bg, pady=2, bd=0)
         row.pack(fill="x", pady=1)
         
-        # Helper for Cell
+        # Helper for Cell with Border
         def make_cell(col, width=None):
-            f = tk.Frame(row, bg=bg)
+            f = tk.Frame(row, bg=bg, bd=1, relief="solid")
             if width:
                 f.configure(width=width)
                 f.pack_propagate(False)
-            f.grid(row=0, column=col, sticky="nsew", padx=1)
+            f.grid(row=0, column=col, sticky="nsew", padx=0, pady=0)
             f.bind("<Button-1>", lambda e, i=index: self._set_active(i))
             return f
 

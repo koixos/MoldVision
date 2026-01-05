@@ -4,9 +4,6 @@ from ..pipeline.processor import Processor
 
 import tkinter as tk
 from tkinter import ttk
-import tempfile
-import os
-import cv2
 
 DEF_PREPROCESS_PARAMS = PreprocessParams()
 DEF_DETECT_PARAMS = DetectParams()
@@ -284,7 +281,7 @@ class RightSidebar(tk.Frame):
         self._write_detect_params(img)
         if self.processor:
             try:        
-                res = self.processor.detect(img.preprocessed.img, img.detect_params)
-                img.detected = res
+                self.processor.detect(img.preprocessed, img.detect_params)
+                #img.detected = res
             except Exception as e:
                 print(f"Detect Error: {e}")

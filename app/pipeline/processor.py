@@ -83,6 +83,7 @@ class Processor:
 
     def detect(self, preprocessed: PreprocessedImage, params: DetectParams):
         img = preprocessed.img
+        brightness = preprocessed.brightness
 
         method = params.method
         ksize = params.ksize
@@ -93,11 +94,10 @@ class Processor:
         var_map = self.local_variance(img, ksize)
         var_norm = cv2.normalize(var_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         
-        self.plot_histogram(var_norm)
+        #self.plot_histogram(var_norm)
 
         mask = None
         if not params.custom:
-            brightness = preprocessed.img
             if brightness == "dark":
                 pass
             if brightness == "medium":
@@ -112,16 +112,27 @@ class Processor:
         else:
             pass
 
-        #visualize(original_img, mask)
+        self.visualize(img, mask)
 
-    def visualize(self, img, mask=None, title="Mold Candidates Overlay"):
-        display = img.copy()
+    def visualize(self, img:np.ndarray, mask=None, title="Mold Candidates Overlay"):
+        # Ensure base is BGR
+        if img.ndim == 2:
+            base_bgr = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        else:
+            base_bgr = img.copy()
+
+        display = base_bgr.copy()
 
         if mask is not None:
             _red = np.zeros_like(display)
             _red[:, :, 2] = 255
+            
+            # Blend everything
             display = cv2.addWeighted(display, 0.7, _red, 0.3, 0)
-            display[mask==0] = img[mask==0]
+            
+            # Restore background where mask is 0
+            # Now both display and base_bgr are (H,W,3), so shapes match.
+            display[mask==0] = base_bgr[mask==0]
 
         plt.figure(figsize=(10, 6))
         plt.axis('off')

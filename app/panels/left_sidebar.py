@@ -4,9 +4,9 @@ from ..state import ImageState, AppState
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import os
-import cv2
 from PIL import Image, ImageTk
+import cv2
+import os
 
 class LeftSidebar(tk.Frame):
     def __init__(self, parent, state: AppState, width=380):
@@ -266,7 +266,7 @@ class LeftSidebar(tk.Frame):
             lbl_name.bind("<Button-1>", lambda e, i=index: self._set_active(i))
 
             c1 = make_cell(1)
-            add_icon(c1, img_st.preprocessed)
+            add_icon(c1, img_st.preprocessed.img)
 
             c2 = make_cell(2)
             add_icon(c2, img_st.detected)

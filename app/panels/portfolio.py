@@ -47,7 +47,7 @@ class Portfolio(tk.Frame):
         # Col 2: Preprocessed
         col2 = tk.Frame(self, bg="#ffffff")
         col2.grid(row=0, column=1, sticky="nsew", padx=4, pady=12)
-        self._build_header(col2, "Preprocessed", lambda: self._save_single(lambda s: s.preprocessed, lambda s: f"preprocessed_{s.filename}"))
+        self._build_header(col2, "Preprocessed", lambda: self._save_single(lambda s: s.preprocessed.img, lambda s: f"preprocessed_{s.filename}"))
         self.cv_pre = self._build_canvas(col2)
 
         # Col 3: Result
@@ -90,7 +90,7 @@ class Portfolio(tk.Frame):
         
         if img_st:
             self._draw_image(self.cv_orig, img_st.original)
-            if img_st.preprocessed is not None:
+            if img_st.preprocessed.img is not None:
                 self._draw_image(self.cv_pre, img_st.preprocessed.img)
             if img_st.detected is not None:
                 self._draw_image(self.cv_res, img_st.detected)

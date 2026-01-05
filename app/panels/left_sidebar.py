@@ -1,20 +1,34 @@
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog, messagebox
-from ..utils.image_loader import EXTS, load_image
+from ..defs import EXTS
+from ..utils.image_loader import load_image
 from ..state import ImageState, AppState
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
 import os
+import cv2
+from PIL import Image, ImageTk
 
 class LeftSidebar(tk.Frame):
     def __init__(self, parent, state: AppState, width=380):
         super().__init__(parent, width=width, bg="#f2f2f2")
         self.pack_propagate(False)
 
-        # Custom Scrollbar Style (No Arrows)
+        # Scrollbar Style
         try:
             style = ttk.Style()
-            style.layout('NoArrows.Vertical.TScrollbar', 
-                        [('Vertical.Scrollbar.trough', {'children': [('Vertical.Scrollbar.thumb', {'expand': '1', 'sticky': 'nswe'})], 'sticky': 'nswe'})])
+            style.layout(
+                'NoArrows.Vertical.TScrollbar', [(
+                    'Vertical.Scrollbar.trough', {
+                        'children': [(
+                            'Vertical.Scrollbar.thumb', {
+                                'expand': '1', 
+                                'sticky': 'nswe'
+                            }
+                        )], 
+                        'sticky': 'nswe'
+                    }
+                )]
+            )
         except: pass
 
         self.state = state
@@ -28,13 +42,21 @@ class LeftSidebar(tk.Frame):
     # ====================== UI ====================== 
 
     def _build_ui(self):
-        # 1. Top Header Area (Fixed at Refactor)
+        # Top Header Area
         self.top_frame = tk.Frame(self, bg="#f2f2f2")
         self.top_frame.pack(fill="x", padx=4, pady=8)
         
         # Toggle Button
-        self.btn_toggle = tk.Button(self.top_frame, text="<<", command=self._toggle_sidebar,
-                                    relief="flat", bg="#e0e0e0", fg="#555", cursor="hand2", width=3)
+        self.btn_toggle = tk.Button(
+            self.top_frame, 
+            text="<<", 
+            command=self._toggle_sidebar,
+            relief="flat",
+            bg="#e0e0e0",
+            fg="#555",
+            cursor="hand2",
+            width=3
+        )
         self.btn_toggle.pack(side="left")
 
         # Title
@@ -42,17 +64,23 @@ class LeftSidebar(tk.Frame):
         self.lbl_title.pack(side="left", padx=8)
 
         # Load Button
-        self.btn_load = tk.Button(self.top_frame, text="+", command=self._load_images, 
-                             relief="flat", bg="#e6e6e6", fg="#222", cursor="hand2", width=3)
+        self.btn_load = tk.Button(
+            self.top_frame, 
+            text="+", 
+            command=self._load_images, 
+            relief="flat",
+            bg="#e6e6e6",
+            fg="#222",
+            cursor="hand2",
+            width=3
+        )
         self.btn_load.pack(side="right")
 
-        # 2. Main Body (Scrollbar + Content)
-        # This frame holds the scrollbar (Right) and the content (Left)
-        # Content holds Header + List
+        # Main Body (Scrollbar + Content)
         self.body_frame = tk.Frame(self, bg="#ffffff")
         self.body_frame.pack(fill="both", expand=True, padx=4, pady=4)
 
-        # External Scrollbar
+        # Scrollbar
         self.scrollbar = ttk.Scrollbar(self.body_frame, orient="vertical", style='NoArrows.Vertical.TScrollbar')
         self.scrollbar.pack(side="right", fill="y")
         
@@ -64,36 +92,29 @@ class LeftSidebar(tk.Frame):
         self.tbl_head = tk.Frame(self.content_frame, bg="#e0e0e0")
         self.tbl_head.pack(fill="x", padx=0, pady=0)
 
-        # Canvas for List
+        # List
         self.canvas = tk.Canvas(self.content_frame, bg="#ffffff", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        # Scrollbar Link
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         self.scrollbar.configure(command=self.canvas.yview)
 
-        # Canvas Internal
         self.inner = tk.Frame(self.canvas, bg="#ffffff")
         self.inner.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
 
-        # Events
         def _configure_width(event):
-            # Update canvas window width to match the canvas width
             self.canvas.itemconfig(self.canvas.create_window((0,0), window=self.inner, anchor='nw'), width=event.width)
         self.canvas.bind("<Configure>", _configure_width)
         
-        # Global Scroll
+        # Mouse Scroll
         self.bind_all("<MouseWheel>", self._on_mousewheel)
 
-        # Initialize
         self._update_header()
 
     def _update_header(self):
-        # Clear existing header
         for w in self.tbl_head.winfo_children(): w.destroy()
         
-        # Configure Top UI
         if self.is_collapsed:
             self.lbl_title.pack_forget()
             self.btn_load.pack_forget()
@@ -103,8 +124,6 @@ class LeftSidebar(tk.Frame):
             self.btn_load.pack(side="right")
             self.btn_toggle.config(text="<<")
 
-        # Configure Table Header columns
-        # Note: No scrollbar spacer needed here! Scrollbar is external.
         if self.is_collapsed:
             self.tbl_head.grid_columnconfigure(0, weight=1) 
             for c in [1, 2, 3]: self.tbl_head.grid_columnconfigure(c, weight=0, minsize=0)
@@ -183,7 +202,7 @@ class LeftSidebar(tk.Frame):
                 messagebox.showerror("Load error", str(e))
         
         if paths and self.state.images:
-             self.state.set_active(len(self.state.images) - 1)
+            self.state.set_active(len(self.state.images) - 1)
 
     def _delete_all(self):
         if self.state.images:
@@ -205,7 +224,6 @@ class LeftSidebar(tk.Frame):
         row = tk.Frame(self.inner, bg=bg, pady=2, bd=0)
         row.pack(fill="x", pady=1)
         
-        # Helper for Cell with Border
         def make_cell(col, width=None):
             f = tk.Frame(row, bg=bg, bd=0, highlightthickness=1, highlightbackground="#f0f0f0")
             if width:
@@ -216,10 +234,8 @@ class LeftSidebar(tk.Frame):
             return f
 
         def add_icon(parent, img):
-             if img is not None:
-                 import cv2
-                 from PIL import Image, ImageTk
-                 try:
+            if img is not None:
+                try:
                     thumb_bgr = cv2.resize(img, (32, 32))
                     thumb_rgb = cv2.cvtColor(thumb_bgr, cv2.COLOR_BGR2RGB)
                     thumb_pil = Image.fromarray(thumb_rgb)
@@ -228,7 +244,7 @@ class LeftSidebar(tk.Frame):
                     lbl = tk.Label(parent, image=thumb_tk, bg=bg)
                     lbl.pack(expand=True)
                     lbl.bind("<Button-1>", lambda e, i=index: self._set_active(i))
-                 except: pass
+                except: pass
 
         if self.is_collapsed:
             row.grid_columnconfigure(0, weight=1)

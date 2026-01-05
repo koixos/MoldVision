@@ -1,7 +1,6 @@
 import cv2
 import os
-
-EXTS = (".png", ".jpg", ".jpeg")
+from ..defs import EXTS
 
 def load_image(path: str):
     ext = os.path.splitext(path)[1].lower()

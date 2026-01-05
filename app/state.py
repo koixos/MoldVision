@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
+from .defs import PreprocessParams, DetectParams, PreprocessedImage
+
+from dataclasses import dataclass
 import numpy as np
-from typing import Dict, List
+from typing import  List
 
 @dataclass
 class ImageState:
@@ -8,11 +10,11 @@ class ImageState:
     filename: str
 
     original: np.ndarray
-    preprocessed: np.ndarray | None = None
+    preprocessed = PreprocessedImage()
     detected: np.ndarray | None = None
 
-    preprocess_params: Dict = field(default_factory=dict)
-    detect_params: Dict = field(default_factory=dict)
+    preprocess_params = PreprocessParams()
+    detect_params = DetectParams()
 
 class AppState:
     def __init__(self):

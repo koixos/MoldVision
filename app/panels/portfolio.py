@@ -1,12 +1,14 @@
+from ..state import AppState
+
 import tkinter as tk
 from tkinter import filedialog
-from ..state import AppState
 from PIL import Image, ImageTk
 import cv2
 
 class Portfolio(tk.Frame):
     def __init__(self, parent, state: AppState):
         super().__init__(parent, bg="#ededed")
+
         self.state = state
 
         self._img_refs = {} 
@@ -15,25 +17,23 @@ class Portfolio(tk.Frame):
     # ====================== UI ====================== 
 
     def _build_ui(self):
-        # 3 columns, equal weight
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- Col 1: Original Image + Buttons ---
+        # Col 1: Original Image + Buttons
         col1 = tk.Frame(self, bg="#ffffff")
         col1.grid(row=0, column=0, sticky="nsew", padx=4, pady=12)
         
         self._build_header(col1, "Original Image", lambda: self._save_single(lambda s: s.original, lambda s: s.filename))
         
-        # Canvas Container
         c1_frame = tk.Frame(col1, bg="#f5f5f5")
         c1_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         
         self.cv_orig = self._build_canvas(c1_frame)
         
-        # Navigation Buttons (Inside Col 1)
+        # Navigation Buttons
         nav_frame = tk.Frame(col1, bg="#ffffff")
         nav_frame.pack(fill="x", pady=(0, 8))
         
@@ -44,19 +44,17 @@ class Portfolio(tk.Frame):
         self.btn_next = tk.Button(nav_frame, text=" > ", font=btn_font, command=self._next, relief="flat", bg="#e0e0e0", width=5)
         self.btn_next.pack(side="right", padx=20)
 
-
-        # --- Col 2: Preprocessed ---
+        # Col 2: Preprocessed
         col2 = tk.Frame(self, bg="#ffffff")
         col2.grid(row=0, column=1, sticky="nsew", padx=4, pady=12)
         self._build_header(col2, "Preprocessed", lambda: self._save_single(lambda s: s.preprocessed, lambda s: f"preprocessed_{s.filename}"))
         self.cv_pre = self._build_canvas(col2)
 
-        # --- Col 3: Result ---
+        # Col 3: Result
         col3 = tk.Frame(self, bg="#ffffff")
         col3.grid(row=0, column=2, sticky="nsew", padx=4, pady=12)
         self._build_header(col3, "Result", lambda: self._save_single(lambda s: s.detected, lambda s: f"output_{s.filename}"))
         self.cv_res = self._build_canvas(col3)
-
 
     def _build_header(self, parent, text, save_cmd):
         header = tk.Frame(parent, bg="#ffffff")
@@ -69,7 +67,7 @@ class Portfolio(tk.Frame):
 
     def _build_canvas(self, parent):
         canvas = tk.Canvas(parent, bg="#f5f5f5", highlightthickness=0)
-        canvas.pack(fill="both", expand=True) # direct pack
+        canvas.pack(fill="both", expand=True)
         return canvas
 
     # ====================== LOGIC ====================== 
@@ -86,7 +84,6 @@ class Portfolio(tk.Frame):
         active_idx = self.state.active_index
         img_st = self.state.active()
 
-        # Update Canvases
         self.cv_orig.delete("all")
         self.cv_pre.delete("all")
         self.cv_res.delete("all")
@@ -94,18 +91,17 @@ class Portfolio(tk.Frame):
         if img_st:
             self._draw_image(self.cv_orig, img_st.original)
             if img_st.preprocessed is not None:
-                self._draw_image(self.cv_pre, img_st.preprocessed)
+                self._draw_image(self.cv_pre, img_st.preprocessed.img)
             if img_st.detected is not None:
                 self._draw_image(self.cv_res, img_st.detected)
 
         # Update Buttons
         if not self.state.images:
-             self.btn_prev.config(state="disabled")
-             self.btn_next.config(state="disabled")
+            self.btn_prev.config(state="disabled")
+            self.btn_next.config(state="disabled")
         else:
-             self.btn_prev.config(state="normal" if active_idx > 0 else "disabled")
-             self.btn_next.config(state="normal" if active_idx < len(self.state.images) - 1 else "disabled")
-
+            self.btn_prev.config(state="normal" if active_idx > 0 else "disabled")
+            self.btn_next.config(state="normal" if active_idx < len(self.state.images) - 1 else "disabled")
 
     def _draw_image(self, canvas: tk.Canvas, img_bgr):
         if img_bgr is None: return
@@ -126,7 +122,7 @@ class Portfolio(tk.Frame):
         img_tk = ImageTk.PhotoImage(img_pil)
 
         canvas.create_image(cw // 2, ch // 2, image=img_tk, anchor="center")
-        self._img_refs[canvas] = img_tk  # Prevent GC
+        self._img_refs[canvas] = img_tk 
 
     # ====================== SAVE ====================== 
 

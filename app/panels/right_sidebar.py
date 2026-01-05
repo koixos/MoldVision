@@ -101,12 +101,25 @@ class RightSidebar(tk.Frame):
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
 
+        self.preprocess_custom_var = tk.BooleanVar(value=False)
+        def _toggle_prep():
+            state = "readonly" if self.preprocess_custom_var.get() else "disabled"
+            self.cb_gray_method.config(state=state)
+        
+        cbtn = tk.Checkbutton(
+            self, text="Customize", variable=self.preprocess_custom_var,
+            bg="#f4f4f4", command=_toggle_prep
+        )
+        cbtn.pack(anchor="w", padx=16)
+
         self.gray_method_var = tk.StringVar(value=DEF_PREPROCESS_PARAMS.gray_method)
         
-        self._dropdown(
+        self.cb_gray_method = self._dropdown(
             "Grayscale Method", self.gray_method_var,
             PREPROCESS_METHODS 
         )
+        
+        _toggle_prep()
 
         self._row_buttons(
             ("Restore Default", self._restore_preprocess),
@@ -124,21 +137,40 @@ class RightSidebar(tk.Frame):
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
 
+        self.detect_custom_var = tk.BooleanVar(value=False)
+        def _toggle_det():
+            state = "normal" if self.detect_custom_var.get() else "disabled"
+            cb_state = "readonly" if self.detect_custom_var.get() else "disabled"
+            
+            self.cb_detect_method.config(state=cb_state)
+            self.sc_ksize.config(state=state)
+            self.sc_elemsize.config(state=state)
+            self.sc_th.config(state=state)
+            self.sc_opacity.config(state=state)
+
+        cbtn = tk.Checkbutton(
+            self, text="Customize", variable=self.detect_custom_var,
+            bg="#f4f4f4", command=_toggle_det
+        )
+        cbtn.pack(anchor="w", padx=16)
+
         self.method_var = tk.StringVar(value=DEF_DETECT_PARAMS.method)
         self.ksize_var = tk.IntVar(value=DEF_DETECT_PARAMS.ksize)
         self.elemsize_var = tk.IntVar(value=DEF_DETECT_PARAMS.elemsize)
         self.th_var = tk.IntVar(value=DEF_DETECT_PARAMS.th)    
         self.opacity_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.opacity)
 
-        self._dropdown(
+        self.cb_detect_method = self._dropdown(
             "Detection Method", self.method_var,
             DETECT_METHODS
         )
 
-        self._slider("Kernel Size", self.ksize_var, 3, 31)
-        self._slider("Structuring Element Size", self.elemsize_var, 10, 100)
-        self._slider("Threshold", self.th_var, 0, 255)
-        self._slider("Overlay Opacity", self.opacity_var, 0.0, 1.0, step=0.05)
+        self.sc_ksize = self._slider("Kernel Size", self.ksize_var, 3, 31)
+        self.sc_elemsize = self._slider("Structuring Element Size", self.elemsize_var, 10, 100)
+        self.sc_th = self._slider("Threshold", self.th_var, 0, 255)
+        self.sc_opacity = self._slider("Overlay Opacity", self.opacity_var, 0.0, 1.0, step=0.05)
+        
+        _toggle_det()
 
         self._row_buttons(
             ("Restore Default", self._restore_detect),
@@ -151,19 +183,21 @@ class RightSidebar(tk.Frame):
         frame.pack(fill="x", padx=16, pady=4)
 
         tk.Label(frame, text=label, bg="#f4f4f4").pack(anchor="w")
-        ttk.Combobox(
+        cb = ttk.Combobox(
             frame,
             textvariable=var,
             values=values,
             state="readonly"
-        ).pack(fill="x")
+        )
+        cb.pack(fill="x")
+        return cb
     
     def _slider(self, label, var, minv, maxv, step=1):
         frame = tk.Frame(self, bg="#f4f4f4")
         frame.pack(fill="x", padx=16, pady=4)
 
         tk.Label(frame, text=label, bg="#f4f4f4").pack(anchor="w")
-        tk.Scale(
+        sc = tk.Scale(
             frame,
             from_=minv,
             to=maxv,
@@ -172,7 +206,9 @@ class RightSidebar(tk.Frame):
             variable=var,
             bg="#f4f4f4",
             highlightthickness=0
-        ).pack(fill="x")
+        )
+        sc.pack(fill="x")
+        return sc
 
     def _row_buttons(self, *buttons):
         frame = tk.Frame(self, bg="#f4f4f4")
@@ -216,10 +252,29 @@ class RightSidebar(tk.Frame):
     # ---- preprocess ----
 
     def _write_preprocess_params(self, img: ImageState):
+        img.preprocess_params.custom = self.preprocess_custom_var.get()
         img.preprocess_params.gray_method = self.gray_method_var.get()
     
     def _restore_preprocess(self):
         self.gray_method_var.set(DEF_PREPROCESS_PARAMS.gray_method)
+        self.preprocess_custom_var.set(False)
+        # self._toggle_prep() needs to be triggered or bound. logic is in checkbutton command.
+        # Checkbutton command is not triggered by var.set(). We need to manually trigger or use trace.
+        # Since I defined _toggle_prep locally, I can't call it here easily unless I make it a method.
+        # Or I can just manually invoke the command if I had access, but I don't.
+        # Better: use trace on var or make toggle a method. For now, rely on active refresh? No.
+        # I will reset the widgets state manually or refactor toggle to method.
+        
+        # Refactoring to methods is cleaner but I used local functions above.
+        # Let's assume I'll fix the local function issue by just setting state directly here or using trace in next step if this fails.
+        # Actually, let's keep it simple: I will use trace in the INIT if possible, but here I am stuck with what I wrote in previous chunks.
+        # Wait, I can make _toggle_prep a method in the class!
+        # Re-writing this chunk to update logic, assuming I will refactor to methods in next step? 
+        # No, I should do it right in one go.
+        
+        # Let's change the strategy for previous chunks? No, I can't go back.
+        # I will just set the widgets to disabled here.
+        self.cb_gray_method.config(state="disabled")
         
         img = self._active()
         img.preprocess_params.custom = False
@@ -249,6 +304,7 @@ class RightSidebar(tk.Frame):
     # ---- detect ----
 
     def _write_detect_params(self, img: ImageState):
+        img.detect_params.custom = self.detect_custom_var.get()
         img.detect_params.method = self.method_var.get()
         img.detect_params.ksize = self.ksize_var.get()
         img.detect_params.elemsize = self.elemsize_var.get()
@@ -261,6 +317,11 @@ class RightSidebar(tk.Frame):
         self.elemsize_var.set(DEF_DETECT_PARAMS.elemsize)
         self.th_var.set(DEF_DETECT_PARAMS.th)   
         self.opacity_var.set(DEF_DETECT_PARAMS.opacity)
+        
+        self.detect_custom_var.set(False)
+        self.cb_detect_method.config(state="disabled")
+        for sc in (self.sc_ksize, self.sc_elemsize, self.sc_th, self.sc_opacity):
+            sc.config(state="disabled")
 
         img = self._active()
         img.detect_params.custom = False

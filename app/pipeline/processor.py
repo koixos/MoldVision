@@ -1,4 +1,5 @@
 from ..defs import PreprocessedImage, PreprocessParams, DetectParams
+from ..state import ImageState
 
 import cv2
 import numpy as np
@@ -81,15 +82,15 @@ class Processor:
         sq_mean = cv2.blur((gray.astype(np.float32) ** 2), (ksize, ksize))
         return sq_mean - mean ** 2
 
-    def detect(self, preprocessed: PreprocessedImage, params: DetectParams):
-        img = preprocessed.img
-        brightness = preprocessed.brightness
+    def detect(self, img_st: ImageState):
+        img = img_st.preprocessed.img
+        brightness = img_st.preprocessed.brightness
 
-        method = params.method
-        ksize = params.ksize
-        elemsize = params.elemsize
-        th = params.th
-        opac = params.opacity
+        method = img_st.detect_params.method
+        ksize = img_st.detect_params.ksize
+        elemsize = img_st.detect_params.elemsize
+        th = img_st.detect_params.th
+        opac = img_st.detect_params.opacity
 
         var_map = self.local_variance(img, ksize)
         var_norm = cv2.normalize(var_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -97,7 +98,7 @@ class Processor:
         #self.plot_histogram(var_norm)
 
         mask = None
-        if not params.custom:
+        if not img_st.detect_params.custom:
             if brightness == "dark":
                 pass
             if brightness == "medium":
@@ -112,10 +113,16 @@ class Processor:
         else:
             pass
 
-        self.visualize(img, mask)
+        if mask is not None:
+            # Resize mask to overlap with original image
+            oh, ow = img_st.original.shape[:2]
+            mask = cv2.resize(mask, (ow, oh), interpolation=cv2.INTER_NEAREST)
 
-    def visualize(self, img:np.ndarray, mask=None, title="Mold Candidates Overlay"):
-        # Ensure base is BGR
+        detected_mold = self.apply_mask(img_st.original, mask)
+
+        return detected_mold
+
+    def apply_mask(self, img:np.ndarray, mask=None):
         if img.ndim == 2:
             base_bgr = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         else:
@@ -126,19 +133,10 @@ class Processor:
         if mask is not None:
             _red = np.zeros_like(display)
             _red[:, :, 2] = 255
-            
-            # Blend everything
             display = cv2.addWeighted(display, 0.7, _red, 0.3, 0)
-            
-            # Restore background where mask is 0
-            # Now both display and base_bgr are (H,W,3), so shapes match.
             display[mask==0] = base_bgr[mask==0]
 
-        plt.figure(figsize=(10, 6))
-        plt.axis('off')
-        plt.title(title)
-        plt.imshow(cv2.cvtColor(display, cv2.COLOR_BGR2RGB))
-        plt.show()
+        return display
 
     def plot_histogram(self, var_map):
         plt.figure(figsize=(6, 4))

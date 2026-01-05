@@ -12,7 +12,4 @@ class PipelineAdapter:
         )
 
     def detect(self, image: ImageState):
-        image.detected = self.detect_fn(
-            image.preprocessed,
-            image.detect_params
-        )
+        image.detected = self.detect_fn(image)

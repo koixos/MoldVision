@@ -281,7 +281,6 @@ class RightSidebar(tk.Frame):
         self._write_detect_params(img)
         if self.processor:
             try:        
-                self.processor.detect(img.preprocessed, img.detect_params)
-                #img.detected = res
+                img.detected = self.processor.detect(img)
             except Exception as e:
                 print(f"Detect Error: {e}")

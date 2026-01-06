@@ -53,7 +53,7 @@ class LeftSidebar(tk.Frame):
             command=self._toggle_sidebar,
             relief="flat",
             bg="#e0e0e0",
-            fg="#555",
+            fg="black",
             cursor="hand2",
             width=3
         )
@@ -70,7 +70,7 @@ class LeftSidebar(tk.Frame):
             command=self._load_images, 
             relief="flat",
             bg="#e6e6e6",
-            fg="#222",
+            fg="black",
             cursor="hand2",
             width=3
         )
@@ -143,7 +143,7 @@ class LeftSidebar(tk.Frame):
                 f = tk.Frame(self.tbl_head, bg="#e0e0e0", height=24, bd=0, highlightthickness=1, highlightbackground="#f0f0f0")
                 f.pack_propagate(False)
                 f.grid(row=0, column=col, sticky="nsew", padx=0, pady=0)
-                tk.Label(f, text=text, bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(expand=True)
+                tk.Label(f, text=text, bg="#e0e0e0", fg="black", font=("Segoe UI", 9, "bold")).pack(expand=True)
 
             h_lbl("Original", 0)
             h_lbl("Preprocessed", 1)

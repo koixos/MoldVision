@@ -20,7 +20,7 @@ DETECT_METHODS = [
 @dataclass
 class PreprocessedImage:
     img: np.ndarray | None = None
-    brightness: str = "light"
+    texture: str = "low_txt"
 
 @dataclass
 class PreprocessParams:
@@ -30,7 +30,7 @@ class PreprocessParams:
 @dataclass
 class DetectParams:
     custom: bool = False
-    ksize: int = 11
+    ksize: int = 9
     elemsize: int = 5
     th: int = 75
     method: str = DETECT_METHODS[0]

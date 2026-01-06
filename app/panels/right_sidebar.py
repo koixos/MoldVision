@@ -324,9 +324,9 @@ class RightSidebar(tk.Frame):
         self._write_preprocess_params(img)
         if self.processor:
             try:
-                res, brightness = self.processor.preprocess(img.original, img.preprocess_params)
+                res, txt = self.processor.preprocess(img.original, img.preprocess_params)
                 img.preprocessed.img = res
-                img.preprocessed.brightness = brightness
+                img.preprocessed.texture = txt
                 img.detected = None # Invalidate detection if re-processed
             except Exception as e:
                 print(f"Preprocess Error: {e}")

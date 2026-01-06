@@ -23,26 +23,6 @@ class Processor:
         if scale < 1.0:
             img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
         return img    
-
-    def detect_background_brightness(self, img, sample_center=False):
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        v = hsv[:, :, 2]
-
-        region = v
-
-        if sample_center:
-            h, w = v.shape
-            ch, cw = h // 2, w // 2
-            region = v[ch - h // 6 : ch + h // 6,
-                    cw - w // 6 : cw + w // 6]
-
-        mean_val = np.mean(region)
-
-        if mean_val < 85:   
-            return "dark"
-        if mean_val < 170:
-            return "medium"
-        return "light"
     
     def to_grayscale(self, img, method="weighted"):  
         b, g, r = cv2.split(img)
@@ -58,25 +38,6 @@ class Processor:
             return (0.21 * r + 0.72 * g + 0.07 * b).astype(np.uint8)
         raise ValueError(f"Unknown method: {method}")
 
-    def preprocess(self, img, params: PreprocessParams): 
-        img = self.scale_img(img)
-
-        detected_brightness = self.detect_background_brightness(img)
-
-        method = params.gray_method
-
-        if not params.custom:
-            if detected_brightness == "light":
-                method = "average"
-            elif detected_brightness == "medium":
-                method = "max"
-            else:
-                pass
-        
-        gray = self.to_grayscale(img, method)
-
-        return gray, detected_brightness
-    
     def local_variance(self, gray, ksize=9):
         mean = cv2.blur(gray.astype(np.float32), (ksize, ksize))
         sq_mean = cv2.blur((gray.astype(np.float32) ** 2), (ksize, ksize))
@@ -86,41 +47,79 @@ class Processor:
         var_map = self.local_variance(img, ksize)     
         return cv2.normalize(var_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
+    def detect_background_texture(self, gray, ksize=9):
+        var_norm = self.calc_variance_map(gray, ksize)
+
+        # histogram-based txt stats
+        tail_ratio = np.sum(var_norm > 60) / var_norm.size
+
+        if tail_ratio < 0.01:   
+            return "low_txt"
+        if tail_ratio < 0.04:
+            return "mid_txt"
+        return "high_txt"
+
+    def preprocess(self, img, params: PreprocessParams): 
+        img = self.scale_img(img)
+        
+        gray = self.to_grayscale(img, params.gray_method)
+        texture = self.detect_background_texture(gray)
+
+        return gray, texture
+    
     def detect(self, img_st: ImageState):
         img = img_st.preprocessed.img
-        brightness = img_st.preprocessed.brightness
+        txt = img_st.preprocessed.texture
 
-        method = img_st.detect_params.method
         ksize = img_st.detect_params.ksize
         elemsize = img_st.detect_params.elemsize
-        th = img_st.detect_params.th
-        opac = img_st.detect_params.opacity
+        #method = img_st.detect_params.method
+        #th = img_st.detect_params.th
+        #opac = img_st.detect_params.opacity
 
-        var_norm = self.calc_variance_map(img, ksize)        
-
-        mask = None
-        if not img_st.detect_params.custom:
-            if brightness == "dark":
-                pass
-            if brightness == "medium":
-                th = np.percentile(var_norm, 80) # en yüksek %20'yi al
-                _, mask = cv2.threshold(var_norm, th, 255, cv2.THRESH_BINARY)
-
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (elemsize, elemsize))
-                mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
-                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
-            if brightness == "light":
-                pass
+        # decide kernel size
+        if txt == "low_txt":
+            ksize = 7
+        elif txt == "mid_txt":
+            ksize = 11
         else:
-            pass
+            ksize = 15
 
-        if mask is not None:
-            # Resize mask to overlap with original image
-            oh, ow = img_st.original.shape[:2]
-            mask = cv2.resize(mask, (ow, oh), interpolation=cv2.INTER_NEAREST)
+        var_norm = self.calc_variance_map(img, ksize)     
 
-        detected_mold = self.apply_mask(img_st.original, mask)
+        # stage 1: lenient candid detection
+        th1 = np.percentile(var_norm, 80)
+        mask1 = (var_norm > th1).astype(np.uint8) * 255
 
+        # connected comp.s
+        num, labels, stats, _ = cv2.connectedComponentsWithStats(mask1, connectivity=8)
+
+        h, w = mask1.shape
+        img_area = h * w
+        final_mask = np.zeros_like(mask1)
+
+        for i in range(1, num):
+            area = stats[i, cv2.CC_STAT_AREA]
+
+            if area < 0.0005 * img_area:
+                continue
+
+            if area > 0.25 * img_area:
+                continue
+
+            final_mask[labels == i] = 255            
+
+        # morphology
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (elemsize, elemsize))
+        final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+        final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+
+        # resize and overlay
+        oh, ow = img_st.original.shape[:2]
+        final_mask = cv2.resize(final_mask, (ow, oh), interpolation=cv2.INTER_NEAREST)
+
+        detected_mold = self.apply_mask(img_st.original, final_mask)
         return detected_mold
 
     def apply_mask(self, img:np.ndarray, mask=None):

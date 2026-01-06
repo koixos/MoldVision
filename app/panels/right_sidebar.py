@@ -147,6 +147,8 @@ class RightSidebar(tk.Frame):
             self.sc_elemsize.config(state=state)
             self.sc_th.config(state=state)
             self.sc_opacity.config(state=state)
+            if hasattr(self, 'btn_hist'):
+                self.btn_hist.config(state=state)
 
         cbtn = tk.Checkbutton(
             self, text="Customize", variable=self.detect_custom_var,
@@ -169,6 +171,17 @@ class RightSidebar(tk.Frame):
         self.sc_elemsize = self._slider("Structuring Element Size", self.elemsize_var, 10, 100)
         self.sc_th = self._slider("Threshold", self.th_var, 0, 255)
         self.sc_opacity = self._slider("Overlay Opacity", self.opacity_var, 0.0, 1.0, step=0.05)
+        
+        # Histogram Button
+        self.btn_hist = tk.Button(
+            self,
+            text="Plot Histogram",
+            command=self._plot_histogram,
+            bg="#e0e0e0", 
+            relief="flat",
+            cursor="hand2"
+        )
+        self.btn_hist.pack(anchor="w", padx=16, pady=4, fill="x")
         
         _toggle_det()
 
@@ -336,6 +349,11 @@ class RightSidebar(tk.Frame):
         for img in self.state.images:
             self._run_detect(img)
         self.state._notify()
+
+    def _plot_histogram(self):
+        img = self._active()
+        if img and self.processor:
+            self.processor.show_variance_histogram(img)
 
     def _run_detect(self, img: ImageState):
         if img.preprocessed.img is None: return 

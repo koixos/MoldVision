@@ -81,6 +81,10 @@ class Processor:
         mean = cv2.blur(gray.astype(np.float32), (ksize, ksize))
         sq_mean = cv2.blur((gray.astype(np.float32) ** 2), (ksize, ksize))
         return sq_mean - mean ** 2
+    
+    def calc_variance_map(self, img, ksize=9):
+        var_map = self.local_variance(img, ksize)     
+        return cv2.normalize(var_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
     def detect(self, img_st: ImageState):
         img = img_st.preprocessed.img
@@ -92,10 +96,7 @@ class Processor:
         th = img_st.detect_params.th
         opac = img_st.detect_params.opacity
 
-        var_map = self.local_variance(img, ksize)
-        var_norm = cv2.normalize(var_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        
-        #self.plot_histogram(var_norm)
+        var_norm = self.calc_variance_map(img, ksize)        
 
         mask = None
         if not img_st.detect_params.custom:
@@ -139,9 +140,16 @@ class Processor:
         return display
 
     def plot_histogram(self, var_map):
+        # TODO: add a vertical line for the current threshold
         plt.figure(figsize=(6, 4))
-        plt.hist(var_map.ravel(), bins=256, range=(0, 256))
+        plt.hist(var_map.ravel(), bins=256, range=(0, 256), color='gray', alpha=0.7)
         plt.title("Local Variance Histogram")
         plt.xlabel("Variance Value")
         plt.ylabel("Frequency")
+        plt.tight_layout()
         plt.show()
+
+    def show_variance_histogram(self, img_st: ImageState):
+        var_map = self.calc_variance_map(img_st.preprocessed.img, img_st.detect_params.ksize)
+        if var_map is not None:
+            self.plot_histogram(var_map)

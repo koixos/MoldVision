@@ -119,6 +119,10 @@ class RightSidebar(tk.Frame):
             PREPROCESS_METHODS 
         )
         
+        # Live Update Triggers
+        self.preprocess_custom_var.trace_add("write", self._on_preprocess_change)
+        self.gray_method_var.trace_add("write", self._on_preprocess_change)
+
         _toggle_prep()
 
         self._row_buttons(
@@ -171,6 +175,14 @@ class RightSidebar(tk.Frame):
         self.sc_elemsize = self._slider("Structuring Element Size", self.elemsize_var, 10, 100)
         self.sc_th = self._slider("Threshold", self.th_var, 0, 255)
         self.sc_opacity = self._slider("Overlay Opacity", self.opacity_var, 0.0, 1.0, step=0.05)
+        
+        # Live Update Triggers
+        self.detect_custom_var.trace_add("write", self._on_detect_change)
+        self.method_var.trace_add("write", self._on_detect_change)
+        self.ksize_var.trace_add("write", self._on_detect_change)
+        self.elemsize_var.trace_add("write", self._on_detect_change)
+        self.th_var.trace_add("write", self._on_detect_change)
+        self.opacity_var.trace_add("write", self._on_detect_change)
         
         # Histogram Button
         self.btn_hist = tk.Button(
@@ -298,6 +310,11 @@ class RightSidebar(tk.Frame):
         self._run_preprocess(img)
         self.state._notify() # Refresh UI
 
+    def _on_preprocess_change(self, *args):
+        img = self._active()
+        if img is None: return
+        self._write_preprocess_params(img)
+
     def _preprocess_all(self):
         for img in self.state.images:
             self._run_preprocess(img)
@@ -354,6 +371,11 @@ class RightSidebar(tk.Frame):
         img = self._active()
         if img and self.processor:
             self.processor.show_variance_histogram(img)
+
+    def _on_detect_change(self, *args):
+        img = self._active()
+        if img is None: return
+        self._write_detect_params(img)
 
     def _run_detect(self, img: ImageState):
         if img.preprocessed.img is None: return 

@@ -1,4 +1,4 @@
-from ..defs import PreprocessedImage, PreprocessParams, DetectParams
+from ..defs import PreprocessParams, DetectParams
 from ..state import ImageState
 
 import cv2
@@ -139,11 +139,12 @@ class Processor:
 
         return display
 
-    def plot_histogram(self, var_map):
-        # TODO: add a vertical line for the current threshold
+    def plot_histogram(self, var_map, curr_th):
         plt.figure(figsize=(6, 4))
         plt.hist(var_map.ravel(), bins=256, range=(0, 256), color='gray', alpha=0.7)
-        plt.title("Local Variance Histogram")
+        plt.axvline(curr_th, color='r', linestyle='--', label=f"th={curr_th}")
+        plt.legend()
+        plt.title("Local Variance Histogram + Threshold")
         plt.xlabel("Variance Value")
         plt.ylabel("Frequency")
         plt.tight_layout()
@@ -152,4 +153,4 @@ class Processor:
     def show_variance_histogram(self, img_st: ImageState):
         var_map = self.calc_variance_map(img_st.preprocessed.img, img_st.detect_params.ksize)
         if var_map is not None:
-            self.plot_histogram(var_map)
+            self.plot_histogram(var_map, img_st.detect_params.th)

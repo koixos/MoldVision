@@ -27,7 +27,7 @@ class RightSidebar(tk.Frame):
             self,
             text="Settings",
             bg="#f4f4f4",
-            fg="#222",
+            fg="black",
             font=("Segoe UI", 14, "bold")
         )
         title.pack(anchor="w", padx=16, pady=(16, 8))
@@ -96,7 +96,7 @@ class RightSidebar(tk.Frame):
             self,
             text="Preprocess Parameters Customization",
             bg="#f4f4f4",
-            fg="#444",
+            fg="black",
             font=("Segoe UI", 11, "bold")
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
@@ -108,7 +108,7 @@ class RightSidebar(tk.Frame):
         
         cbtn = tk.Checkbutton(
             self, text="Customize", variable=self.preprocess_custom_var,
-            bg="#f4f4f4", command=_toggle_prep
+            bg="#f4f4f4", command=_toggle_prep, fg="black"
         )
         cbtn.pack(anchor="w", padx=16)
 
@@ -136,7 +136,7 @@ class RightSidebar(tk.Frame):
             self,
             text="Mold Detection Parameters Customization",
             bg="#f4f4f4",
-            fg="#444",
+            fg="black",
             font=("Segoe UI", 11, "bold")
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
@@ -156,7 +156,7 @@ class RightSidebar(tk.Frame):
 
         cbtn = tk.Checkbutton(
             self, text="Customize", variable=self.detect_custom_var,
-            bg="#f4f4f4", command=_toggle_det
+            bg="#f4f4f4", command=_toggle_det, fg = "black"
         )
         cbtn.pack(anchor="w", padx=16)
 
@@ -207,7 +207,7 @@ class RightSidebar(tk.Frame):
         frame = tk.Frame(self, bg="#f4f4f4")
         frame.pack(fill="x", padx=16, pady=4)
 
-        tk.Label(frame, text=label, bg="#f4f4f4").pack(anchor="w")
+        tk.Label(frame, text=label, bg="#f4f4f4", fg="black").pack(anchor="w")
         cb = ttk.Combobox(
             frame,
             textvariable=var,
@@ -221,7 +221,7 @@ class RightSidebar(tk.Frame):
         frame = tk.Frame(self, bg="#f4f4f4")
         frame.pack(fill="x", padx=16, pady=4)
 
-        tk.Label(frame, text=label, bg="#f4f4f4").pack(anchor="w")
+        tk.Label(frame, text=label, bg="#f4f4f4", fg="black").pack(anchor="w")
         sc = tk.Scale(
             frame,
             from_=minv,
@@ -230,7 +230,8 @@ class RightSidebar(tk.Frame):
             orient="horizontal",
             variable=var,
             bg="#f4f4f4",
-            highlightthickness=0
+            highlightthickness=0,
+            fg="black"
         )
         sc.pack(fill="x")
         return sc
@@ -246,6 +247,7 @@ class RightSidebar(tk.Frame):
                 command=cmd,
                 relief="flat",
                 bg="#e6e6e6",
+                fg="black",
                 cursor="hand2"
             ).pack(side="left", expand=True, fill="x", padx=2)
 

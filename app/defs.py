@@ -13,8 +13,10 @@ PREPROCESS_METHODS = [
 
 DETECT_METHODS = [
     "variance",
-    "threshold",
-    "custom"
+    "adaptive",
+    "edge",
+    "saturation",
+    "var_lbp",
 ]
 
 @dataclass

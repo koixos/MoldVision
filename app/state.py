@@ -14,7 +14,9 @@ class ImageState:
     detected: np.ndarray | None = None
 
     preprocess_params: PreprocessParams = field(default_factory=PreprocessParams)
+    preprocess_params: PreprocessParams = field(default_factory=PreprocessParams)
     detect_params: DetectParams = field(default_factory=DetectParams)
+    auto_info: str = ""
 
 class AppState:
     def __init__(self):

@@ -5,6 +5,7 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 import cv2
 
+
 class Portfolio(tk.Frame):
     def __init__(self, parent, state: AppState):
         super().__init__(parent, bg="#ededed")
@@ -13,6 +14,31 @@ class Portfolio(tk.Frame):
 
         self._img_refs = {} 
         self._build_ui()
+
+
+    def refresh(self):
+        active_idx = self.state.active_index
+        img_st = self.state.active()
+
+        self.cv_orig.delete("all")
+        self.cv_pre.delete("all")
+        self.cv_res.delete("all")
+        
+        if img_st:
+            self._draw_image(self.cv_orig, img_st.original)
+            if img_st.preprocessed.img is not None:
+                self._draw_image(self.cv_pre, img_st.preprocessed.img)
+            if img_st.detected is not None:
+                self._draw_image(self.cv_res, img_st.detected)
+
+        # Update Buttons
+        if not self.state.images:
+            self.btn_prev.config(state="disabled")
+            self.btn_next.config(state="disabled")
+        else:
+            self.btn_prev.config(state="normal" if active_idx > 0 else "disabled")
+            self.btn_next.config(state="normal" if active_idx < len(self.state.images) - 1 else "disabled")
+
 
     # ====================== UI ====================== 
 
@@ -56,6 +82,7 @@ class Portfolio(tk.Frame):
         self._build_header(col3, "Result", lambda: self._save_single(lambda s: s.detected, lambda s: f"output_{s.filename}"))
         self.cv_res = self._build_canvas(col3)
 
+
     def _build_header(self, parent, text, save_cmd):
         header = tk.Frame(parent, bg="#ffffff")
         header.pack(fill="x", padx=8, pady=6)
@@ -65,10 +92,12 @@ class Portfolio(tk.Frame):
         btn.pack(side="right")
         btn.bind("<Button-1>", lambda e: save_cmd())
 
+
     def _build_canvas(self, parent):
         canvas = tk.Canvas(parent, bg="#f5f5f5", highlightthickness=0)
         canvas.pack(fill="both", expand=True)
         return canvas
+
 
     # ====================== LOGIC ====================== 
 
@@ -76,32 +105,11 @@ class Portfolio(tk.Frame):
         if self.state.images:
             self.state.set_active(max(0, self.state.active_index - 1))
 
+
     def _next(self):
         if self.state.images:
             self.state.set_active(min(len(self.state.images)-1, self.state.active_index + 1))
 
-    def refresh(self):
-        active_idx = self.state.active_index
-        img_st = self.state.active()
-
-        self.cv_orig.delete("all")
-        self.cv_pre.delete("all")
-        self.cv_res.delete("all")
-        
-        if img_st:
-            self._draw_image(self.cv_orig, img_st.original)
-            if img_st.preprocessed.img is not None:
-                self._draw_image(self.cv_pre, img_st.preprocessed.img)
-            if img_st.detected is not None:
-                self._draw_image(self.cv_res, img_st.detected)
-
-        # Update Buttons
-        if not self.state.images:
-            self.btn_prev.config(state="disabled")
-            self.btn_next.config(state="disabled")
-        else:
-            self.btn_prev.config(state="normal" if active_idx > 0 else "disabled")
-            self.btn_next.config(state="normal" if active_idx < len(self.state.images) - 1 else "disabled")
 
     def _draw_image(self, canvas: tk.Canvas, img_bgr):
         if img_bgr is None: return
@@ -123,6 +131,7 @@ class Portfolio(tk.Frame):
 
         canvas.create_image(cw // 2, ch // 2, image=img_tk, anchor="center")
         self._img_refs[canvas] = img_tk 
+
 
     # ====================== SAVE ====================== 
 

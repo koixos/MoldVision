@@ -26,12 +26,10 @@ class PreprocessedImage:
 
 @dataclass
 class PreprocessParams:
-    custom: bool = False
     gray_method: str = PREPROCESS_METHODS[0]
 
 @dataclass
 class DetectParams:
-    custom: bool = False
     ksize: int = 9
     elemsize: int = 5
     th: int = 75

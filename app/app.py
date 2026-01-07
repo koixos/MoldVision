@@ -4,6 +4,7 @@ from .panels.left_sidebar import LeftSidebar
 from .panels.right_sidebar import RightSidebar
 from .panels.portfolio import Portfolio
 
+
 class MoldVisionApp:
     def __init__(self, master):
         self.master = master
@@ -14,10 +15,11 @@ class MoldVisionApp:
 
         self.state = AppState()
 
-        self.state.add_listener(self.active_changed)
-        self.build_ui()
+        self.state.add_listener(self._active_changed)
+        self._build_ui()
 
-    def build_ui(self):
+
+    def _build_ui(self):
         self.left = LeftSidebar(self.master, self.state)
         self.left.pack(side="left", fill="y")    
 
@@ -27,6 +29,7 @@ class MoldVisionApp:
         self.right = RightSidebar(self.master, self.state, self.processor)
         self.right.pack(side="right", fill="y")
 
-    def active_changed(self):
+
+    def _active_changed(self):
         self.left.refresh()
         self.portfolio.refresh()

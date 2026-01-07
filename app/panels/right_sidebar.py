@@ -24,6 +24,7 @@ class RightSidebar(tk.Frame):
         self._build_ui()
         self._update_ui_state()
 
+
     # ====================== UI ====================== 
 
     def _build_ui(self):
@@ -58,7 +59,7 @@ class RightSidebar(tk.Frame):
         frame = tk.Frame(self, bg="#f4f4f4")
         frame.pack(side="bottom", fill="x", padx=16, pady=16)
 
-        # Menu Button
+        # preprocess/detect all btns
         top_bar = tk.Frame(frame, bg="#f4f4f4")
         top_bar.pack(fill="x", pady=(0, 4))
         
@@ -92,7 +93,7 @@ class RightSidebar(tk.Frame):
             cursor="hand2", height=2
         )
 
-        # Preprocess Button
+        # custom preprocess btn
         self.btn_preprocess = tk.Button(
             self.actions_container,
             text="Preprocess",
@@ -101,9 +102,8 @@ class RightSidebar(tk.Frame):
             relief="flat", font=btn_font,
             cursor="hand2", height=2
         )
-        # self.btn_preprocess.pack(fill="x", pady=(0, 8))
 
-        # Detect Button
+        # custom detect btn
         self.btn_detect = tk.Button(
             self.actions_container,
             text="Detect Mold",
@@ -112,11 +112,11 @@ class RightSidebar(tk.Frame):
             relief="flat", font=btn_font,
             cursor="hand2", height=2
         )
-        # self.btn_detect.pack(fill="x")
 
 
     def _divider(self):
         tk.Frame(self, height=1, bg="#cccccc").pack(fill="x", padx=16, pady=12)
+
 
     # ====================== PREPROCESS ====================== 
 
@@ -138,14 +138,10 @@ class RightSidebar(tk.Frame):
         )
         
         # Live Update Triggers
-        # self.preprocess_custom_var.trace_add - removed
         self.gray_method_var.trace_add("write", self._on_preprocess_change)
 
-        # _toggle_prep() - removed
+        self._row_buttons(("Restore Default", self._restore_preprocess))
 
-        self._row_buttons(
-            ("Restore Default", self._restore_preprocess),
-        )
 
     # ====================== DETECT ====================== 
 
@@ -158,8 +154,6 @@ class RightSidebar(tk.Frame):
             font=("Segoe UI", 11, "bold")
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
-
-        # Removed individual checkbutton
 
         self.method_var = tk.StringVar(value=DEF_DETECT_PARAMS.method)
         self.ksize_var = tk.IntVar(value=DEF_DETECT_PARAMS.ksize)
@@ -178,8 +172,6 @@ class RightSidebar(tk.Frame):
         self.sc_opacity = self._slider("Overlay Opacity", self.opacity_var, 0.0, 1.0, step=0.05)
         
         # Live Update Triggers
-        # Live Update Triggers
-        # self.detect_custom_var.trace_add("write", self._on_detect_change)
         self.method_var.trace_add("write", self._on_detect_change)
         self.method_var.trace_add("write", self._on_detect_change)
         self.ksize_var.trace_add("write", self._on_detect_change)
@@ -197,17 +189,14 @@ class RightSidebar(tk.Frame):
             cursor="hand2"
         )
         self.btn_hist.pack(anchor="w", padx=16, pady=4, fill="x")
-        
-        self.btn_hist.pack(anchor="w", padx=16, pady=4, fill="x")
-        
+                
         self.cb_detect_method.config(state="disabled")
         for sc in (self.sc_ksize, self.sc_elemsize, self.sc_th, self.sc_opacity):
             sc.config(state="disabled")
         self.btn_hist.config(state="disabled")
 
-        self._row_buttons(
-            ("Restore Default", self._restore_detect),
-        )
+        self._row_buttons(("Restore Default", self._restore_detect))
+
 
     # ====================== WIDGET HELPERS ====================== 
 
@@ -225,6 +214,7 @@ class RightSidebar(tk.Frame):
         cb.pack(fill="x")
         return cb
     
+
     def _slider(self, label, var, minv, maxv, step=1):
         frame = tk.Frame(self, bg="#f4f4f4")
         frame.pack(fill="x", padx=16, pady=4)
@@ -242,6 +232,7 @@ class RightSidebar(tk.Frame):
         )
         sc.pack(fill="x")
         return sc
+    
 
     def _row_buttons(self, *buttons):
         frame = tk.Frame(self, bg="#f4f4f4")
@@ -257,21 +248,22 @@ class RightSidebar(tk.Frame):
                 cursor="hand2"
             ).pack(side="left", expand=True, fill="x", padx=2)
 
+
     # ====================== LOGIC ====================== 
 
     def _active(self):
         return self.state.active()
+    
     
     def _update_ui_state(self):
         self._update_button_states()
         self._update_controls_state()
         self._update_info_label()
 
+
     def _update_button_states(self):
-        # Update button enable/disable logic based on image availability
         has_active = (self.state.images and self.state.active_index != -1)
         
-        # Decide which buttons to show
         self.btn_auto.pack_forget()
         self.btn_preprocess.pack_forget()
         self.btn_detect.pack_forget()
@@ -282,7 +274,6 @@ class RightSidebar(tk.Frame):
         else:
             self.btn_auto.pack(fill="x")
 
-        # Set states
         if not has_active:
             self._set_btn_state(self.btn_auto, False, "#673ab7")
             self._set_btn_state(self.btn_preprocess, False, "#2196f3")
@@ -294,15 +285,17 @@ class RightSidebar(tk.Frame):
         
         active_img = self._active()
         if active_img and active_img.preprocessed.img is not None:
-             self._set_btn_state(self.btn_detect, True, "#4caf50")
+            self._set_btn_state(self.btn_detect, True, "#4caf50")
         else:
-             self._set_btn_state(self.btn_detect, False, "#4caf50")
+            self._set_btn_state(self.btn_detect, False, "#4caf50")
+
 
     def _set_btn_state(self, btn, enabled, color):
         if enabled:
             btn.config(state="normal", bg=color, cursor="hand2")
         else:
             btn.config(state="disabled", bg="#cccccc", cursor="arrow")
+
 
     def _update_controls_state(self):
         is_custom = self.custom_var.get()
@@ -311,7 +304,6 @@ class RightSidebar(tk.Frame):
         has_prep = (active_img is not None and active_img.preprocessed.img is not None)
 
         # Preprocess: always enabled if custom
-        prep_state = "normal" if is_custom else "disabled"
         prep_cb_state = "readonly" if is_custom else "disabled"
         self.cb_gray_method.config(state=prep_cb_state)
 
@@ -324,9 +316,13 @@ class RightSidebar(tk.Frame):
         for w in (self.sc_ksize, self.sc_elemsize, self.sc_th, self.sc_opacity, self.btn_hist):
             w.config(state=det_state)
 
+
     def _on_custom_toggle(self, *args):
-        # Triggered when global custom var changes
+        img = self._active()
+        img.custom = self.custom_var.get()
+        
         self._update_ui_state()
+
 
     def _update_info_label(self):
         img = self._active()
@@ -335,40 +331,45 @@ class RightSidebar(tk.Frame):
             return
         
         txt = ""
-        # Assuming we can get info from img state if we store it
-        # For now, if custom:
         if self.custom_var.get():
-             txt = f"Custom | Gray: {self.gray_method_var.get()} | Det: {self.method_var.get()}"
+            txt = f"Custom | Gray: {self.gray_method_var.get()} | Det: {self.method_var.get()}"
         else:
-             # Auto mode
-             # Check if we have active info
-             if img.preprocessed.img is not None:
-                 txt = getattr(img, 'auto_info', f"Auto Mode | Texture: {getattr(img.preprocessed, 'texture', '?')}")
-             else:
-                 txt = "Auto Detect Mode"
+            if img.preprocessed.img is not None:
+                txt = getattr(img, 'auto_info', f"Auto Mode | Texture: {getattr(img.preprocessed, 'texture', '?')}")
+            else:
+                txt = "Auto Detect Mode"
         
         self.lbl_info.config(text=txt)
+
 
     def _on_preprocess_change(self, *args):
         img = self._active()
         if img is None: return
         self._write_preprocess_params(img)
 
-    def _write_preprocess_params(self, img: ImageState):
-        img.preprocess_params.custom = self.custom_var.get()
-        img.preprocess_params.gray_method = self.gray_method_var.get() # Even if disabled, we can read it
     
+    def _on_detect_change(self, *args):
+        img = self._active()
+        if img is None: return
+        self._write_detect_params(img)
+
+
+    def _write_preprocess_params(self, img: ImageState):
+        img.preprocess_params.gray_method = self.gray_method_var.get()
+    
+
     def _write_detect_params(self, img: ImageState):
-        img.detect_params.custom = self.custom_var.get()
         img.detect_params.method = self.method_var.get()
         img.detect_params.ksize = self.ksize_var.get()
         img.detect_params.elemsize = self.elemsize_var.get()
         img.detect_params.th = self.th_var.get()
         img.detect_params.opacity = self.opacity_var.get()
 
+
     def _restore_preprocess(self):
         self.gray_method_var.set(DEF_PREPROCESS_PARAMS.gray_method)
     
+
     def _restore_detect(self):
         self.method_var.set(DEF_DETECT_PARAMS.method)
         self.ksize_var.set(DEF_DETECT_PARAMS.ksize)
@@ -376,16 +377,19 @@ class RightSidebar(tk.Frame):
         self.th_var.set(DEF_DETECT_PARAMS.th)   
         self.opacity_var.set(DEF_DETECT_PARAMS.opacity)
 
+
     def _preprocess_active(self):
         img = self._active()
         if img is None: return
         self._run_preprocess(img)
         self.state._notify() # Refresh UI
 
+
     def _preprocess_all(self):
         for img in self.state.images:
             self._run_preprocess(img)
         self.state._notify()
+
 
     def _run_preprocess(self, img: ImageState):
         self._write_preprocess_params(img)
@@ -398,23 +402,22 @@ class RightSidebar(tk.Frame):
             except Exception as e:
                 print(f"Preprocess Error: {e}")
 
+
     def _detect_active(self):
         img = self._active()
         if img is None: return
         self._run_detect(img)
         self.state._notify()
 
+
     def _detect_all(self):
         for img in self.state.images:
             self._run_detect(img)
         self.state._notify()
 
+
     def _auto_detect(self):
         self._preprocess_active()
-        # _preprocess_active calls run_preprocess -> notify -> updates UI
-        # We need to queue detect or call immediately?
-        # Detect needs preprocessed image.
-        # run_preprocess is synchronous.
         self._detect_active()
 
 
@@ -423,11 +426,7 @@ class RightSidebar(tk.Frame):
         if img and self.processor:
             self.processor.show_variance_histogram(img)
 
-    def _on_detect_change(self, *args):
-        img = self._active()
-        if img is None: return
-        self._write_detect_params(img)
-
+    
     def _run_detect(self, img: ImageState):
         if img.preprocessed.img is None: return 
         self._write_detect_params(img)

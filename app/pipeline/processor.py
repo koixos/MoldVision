@@ -16,17 +16,23 @@ class Processor:
     def preprocess(self, img_st: ImageState): 
         img = img_st.original
         if img is None: return
+
         img = self._scale_img(img)
-        gray = self._to_grayscale(img, img_st.preprocess_params.gray_method)
+
+        method = img_st.preprocess_params.gray_method
+        if not img_st.custom:
+            method = self._auto_grayscale(img)
+        
+        gray = self._to_grayscale(img, method)
         texture = self._detect_background_texture(gray)
+        
         return gray, texture
         
 
     def detect(self, img_st: ImageState):
         method = img_st.detect_params.method
-
-        if not img_st.detect_params.custom:
-            return self._detect_auto(img_st)
+        if not img_st.custom:
+            method = self._auto_detect(img_st)
         
         if method == "variance":
             return self._detect_var(img_st)
@@ -37,7 +43,7 @@ class Processor:
         if method == "saturation":
             return self._detect_satur(img_st)
         if method == "var_lbp":
-            return self._detect_var_lbp(img_st)
+            return self._detect_var(img_st)
         
         raise ValueError("Unknown detection method")
     
@@ -60,11 +66,52 @@ class Processor:
         }
     
 
-    def _detect_auto(self, img_st: ImageState):
-        # Default strategy: Variance based
-        # We can expand this to pick strategies based on texture/brightness
-        img_st.auto_info = "Auto: Variance Method"
-        return self._detect_var(img_st)
+    def _to_grayscale(self, img, method="weighted"):  
+        b, g, r = cv2.split(img)
+        if method == "weighted":
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if method == "average":
+            return ((r + g + b) / 3).astype(np.uint8)
+        if method == "max":
+            return np.maximum(np.maximum(r, g), b)
+        if method == "min":
+            return np.minimum(np.minimum(r, g), b)
+        if method == "luminosity":
+            return (0.21 * r + 0.72 * g + 0.07 * b).astype(np.uint8)
+        raise ValueError(f"Unknown method: {method}")
+
+
+    def _auto_grayscale(self, img):
+        stats = self._analyze_img(img)
+
+        mean_v = stats["mean_v"]
+        std_v = stats["std_v"]
+        mean_s = stats["mean_s"]
+
+        # colored surface
+        if mean_s > 60: return "weighted"
+        # low contrast - less detail
+        if std_v < 30: return "luminosity"
+        # light surface, dark mold
+        if mean_v > 160: return "max"
+        # too dark img
+        if mean_v < 80: return "average"
+
+        return "weighted"
+    
+
+    def _auto_detect(self, img_st: ImageState):
+        txt = img_st.preprocessed.texture
+
+        method = "saturation"
+        if txt == "low_txt":
+            method = "variance"
+        elif txt == "mid_txt":
+            method = "var_lbp"
+
+        img_st.auto_info = "Auto: " + method + " Method"
+
+        return method
 
 
     def _detect_var(self, img_st: ImageState):
@@ -114,28 +161,74 @@ class Processor:
         final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
         final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel, iterations=1)
 
-        # resize and overlay
-        oh, ow = img_st.original.shape[:2]
-        final_mask = cv2.resize(final_mask, (ow, oh), interpolation=cv2.INTER_NEAREST)
-
-        detected_mold = self._apply_mask(img_st.original, final_mask)
-        return detected_mold
+        return self._apply_mask(img_st.original, final_mask)
     
 
     def _detect_adap(self, img_st: ImageState):
-        pass
+        gray = img_st.preprocessed.img
+        if gray is None: return
+
+        mask = cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            blockSize=21,
+            C=5
+        )
+        
+        mask = cv2.morphologyEx(
+            mask, 
+            cv2.MORPH_OPEN, 
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)), 
+            iterations=1
+        )
+
+        return self._apply_mask(img_st.original, mask)
 
 
     def _detect_edge(self, img_st: ImageState):
-        pass
+        gray = img_st.preprocessed.img
+        if gray is None: return
 
+        edges = cv2.Canny(gray, 50, 150)
 
-    def _detect_var_lbp(self, img_st: ImageState):
-        pass
+        kernel = np.ones((9, 9), np.uint8)
+        density = cv2.filter2D(edges.astype(np.float32), -1, kernel)
+
+        _, mask = cv2.threshold(density, 20, 255, cv2.THRESH_BINARY)
+        mask = mask.astype(np.uint8)
+
+        return self._apply_mask(img_st.original, mask)
 
 
     def _detect_satur(self, img_st: ImageState):
-        pass
+        img = img_st.original
+        if img is None: return
+
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        s = hsv[:, :, 1]
+
+        _, mask = cv2.threshold(s, 60, 255, cv2.THRESH_BINARY_INV)
+
+        mask = cv2.morphologyEx(
+            mask,
+            cv2.MORPH_OPEN,
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)),
+            iterations=1
+        )        
+
+        return self._apply_mask(img_st.original, mask)
+    
+
+    def _detect_var_lbp(self, img_st: ImageState):
+        gray = img_st.preprocessed.img
+        if gray is None: return
+
+        
+
+        return self._apply_mask(img_st.original, mask)
+    
 
     def _scale_img(self, img, max_dim=1024):
         """
@@ -150,21 +243,6 @@ class Processor:
         if scale < 1.0:
             img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
         return img    
-    
-
-    def _to_grayscale(self, img, method="weighted"):  
-        b, g, r = cv2.split(img)
-        if method == "weighted":
-            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        if method == "average":
-            return ((r + g + b) / 3).astype(np.uint8)
-        if method == "max":
-            return np.maximum(np.maximum(r, g), b)
-        if method == "min":
-            return np.minimum(np.minimum(r, g), b)
-        if method == "luminosity":
-            return (0.21 * r + 0.72 * g + 0.07 * b).astype(np.uint8)
-        raise ValueError(f"Unknown method: {method}")
 
     
     def _detect_background_texture(self, gray, ksize=9):
@@ -202,6 +280,10 @@ class Processor:
     
     
     def _apply_mask(self, img:np.ndarray, mask=None):
+        # resize and overlay
+        oh, ow = img.shape[:2]
+        mask = cv2.resize(mask, (ow, oh), interpolation=cv2.INTER_NEAREST)
+
         if img.ndim == 2:
             base_bgr = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         else:

@@ -1,5 +1,4 @@
 from ..defs import EXTS
-from ..utils.image_loader import load_image
 from ..state import ImageState, AppState
 
 import tkinter as tk
@@ -7,6 +6,7 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import cv2
 import os
+
 
 class LeftSidebar(tk.Frame):
     def __init__(self, parent, state: AppState, width=380):
@@ -38,8 +38,18 @@ class LeftSidebar(tk.Frame):
         self._img_refs = [] 
 
         self._build_ui()
+
     
-    # ====================== UI ====================== 
+    def refresh(self):
+        self._update_header()
+        for w in self.inner.winfo_children(): w.destroy()
+        self._img_refs = []
+
+        for idx, img_st in enumerate(self.state.images):
+            self._add_row(idx, img_st)
+    
+
+    # ====================== UI ======================
 
     def _build_ui(self):
         # Top Header Area
@@ -105,12 +115,14 @@ class LeftSidebar(tk.Frame):
 
         def _configure_width(event):
             self.canvas.itemconfig(self.canvas.create_window((0,0), window=self.inner, anchor='nw'), width=event.width)
+        
         self.canvas.bind("<Configure>", _configure_width)
         
         # Mouse Scroll
         self.bind_all("<MouseWheel>", self._on_mousewheel)
 
         self._update_header()
+
 
     def _update_header(self):
         for w in self.tbl_head.winfo_children(): w.destroy()
@@ -132,7 +144,6 @@ class LeftSidebar(tk.Frame):
             f.pack_propagate(False)
             f.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
             tk.Label(f, text="Images", bg="#e0e0e0", font=("Segoe UI", 9, "bold")).pack(expand=True)
-            
         else:
             self.tbl_head.grid_columnconfigure(0, weight=1, uniform="h_cols") 
             self.tbl_head.grid_columnconfigure(1, weight=1, uniform="h_cols") 
@@ -175,6 +186,7 @@ class LeftSidebar(tk.Frame):
             btn_del_all.bind("<Enter>", show_tooltip)
             btn_del_all.bind("<Leave>", hide_tooltip)
 
+
     def _on_mousewheel(self, event):
         try:
             x, y = self.winfo_pointerxy()
@@ -182,6 +194,7 @@ class LeftSidebar(tk.Frame):
             if widget and str(widget).startswith(str(self)):
                 self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         except: pass
+
 
     # ====================== LOGIC ====================== 
 
@@ -191,11 +204,24 @@ class LeftSidebar(tk.Frame):
         self.configure(width=target_w)
         self.refresh()
 
+
+    def _load_image(self, path: str):
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in EXTS:
+            raise ValueError(f"Unsupported image format: {ext}")
+        
+        img = cv2.imread(path)
+        if img is None:
+            raise ValueError(f"Failed to load image: {path}")
+        
+        return img
+
+
     def _load_images(self):
         paths = filedialog.askopenfilenames(title="Select Images", filetypes=[("Images", "*" + " *".join(EXTS))])
         for path in paths:
             try:
-                img = load_image(path)
+                img = self._load_image(path)
                 state = ImageState(path=path, filename=os.path.basename(path), original=img)
                 self.state.add_image(state)
             except Exception as e:
@@ -204,20 +230,14 @@ class LeftSidebar(tk.Frame):
         if paths and self.state.images:
             self.state.set_active(len(self.state.images) - 1)
 
+
     def _delete_all(self):
         if self.state.images:
             if messagebox.askyesno("Confirm", "Delete all images?"):
                 self.state.clear_images()
 
-    def refresh(self):
-        self._update_header()
-        for w in self.inner.winfo_children(): w.destroy()
-        self._img_refs = []
 
-        for idx, img_st in enumerate(self.state.images):
-            self._add_row(idx, img_st)
-
-    def _add_row(self, index, img_st):
+    def _add_row(self, index, img_st: ImageState):
         is_active = (index == self.state.active_index)
         bg = "#dfefff" if is_active else "#ffffff"
         
@@ -279,8 +299,10 @@ class LeftSidebar(tk.Frame):
         row.bind("<Enter>", lambda e: row.config(bg="#e8e8e8"))
         row.bind("<Leave>", lambda e: row.config(bg=bg))
 
+
     def _set_active(self, index):
         self.state.set_active(index)
+
 
     def _delete(self, index):
         self.state.remove_image(index)

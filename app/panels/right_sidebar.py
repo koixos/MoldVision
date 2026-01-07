@@ -264,6 +264,7 @@ class RightSidebar(tk.Frame):
     
     def _update_ui_state(self):
         self._update_button_states()
+        self._update_controls_state()
         self._update_info_label()
 
     def _update_button_states(self):
@@ -305,27 +306,27 @@ class RightSidebar(tk.Frame):
 
     def _update_controls_state(self):
         is_custom = self.custom_var.get()
-        state = "normal" if is_custom else "disabled"
-        cb_state = "readonly" if is_custom else "disabled"
+        
+        active_img = self._active()
+        has_prep = (active_img is not None and active_img.preprocessed.img is not None)
 
-        # Preprocess
-        self.cb_gray_method.config(state=cb_state)
+        # Preprocess: always enabled if custom
+        prep_state = "normal" if is_custom else "disabled"
+        prep_cb_state = "readonly" if is_custom else "disabled"
+        self.cb_gray_method.config(state=prep_cb_state)
 
-        # Detect
-        self.cb_detect_method.config(state=cb_state)
+        # Detect: enabled if custom AND preprocessed
+        det_enabled = is_custom and has_prep
+        det_state = "normal" if det_enabled else "disabled"
+        det_cb_state = "readonly" if det_enabled else "disabled"
+        
+        self.cb_detect_method.config(state=det_cb_state)
         for w in (self.sc_ksize, self.sc_elemsize, self.sc_th, self.sc_opacity, self.btn_hist):
-            w.config(state=state)
-            
-        self._update_ui_state()
+            w.config(state=det_state)
 
     def _on_custom_toggle(self, *args):
         # Triggered when global custom var changes
-        self._update_controls_state()
-        # Also need to update listeners or params
-        # But we do lazy update on action usually. 
-        # However, if we switch to Custom, we want to ensure params are synced?
-        # Actually params are written when action runs.
-        pass
+        self._update_ui_state()
 
     def _update_info_label(self):
         img = self._active()

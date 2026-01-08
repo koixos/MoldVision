@@ -201,27 +201,36 @@ class RightSidebar(tk.Frame):
 
         self._row_buttons(("Restore Default", self._restore_preprocess), parent=self.frm_controls)
         
-        # Preprocess Action Buttons
+        # Preprocess Action Buttons with Menu
+        preprocess_actions_frame = tk.Frame(self.frm_controls, bg="#f4f4f4")
+        preprocess_actions_frame.pack(fill="x", padx=16, pady=(4, 8))
+        
+        # Menu button for Preprocess All
+        btn_preprocess_menu = tk.Button(
+            preprocess_actions_frame, text="...", 
+            relief="flat", bg="#e0e0e0", fg="#555",
+            cursor="hand2", width=3
+        )
+        btn_preprocess_menu.pack(side="right")
+        
+        self.menu_preprocess_actions = tk.Menu(self, tearoff=0)
+        self.menu_preprocess_actions.add_command(label="Preprocess All", command=self._preprocess_all)
+        
+        def show_preprocess_menu(e):
+            self.menu_preprocess_actions.post(e.x_root, e.y_root)
+        btn_preprocess_menu.bind("<Button-1>", show_preprocess_menu)
+        
+        # Preprocess Button
         btn_font = ("Segoe UI", 11, "bold")
         self.btn_preprocess = tk.Button(
-            self.frm_controls,
+            preprocess_actions_frame,
             text="Preprocess",
             command=self._preprocess_active,
             bg="#2196f3", fg="white",
             relief="flat", font=btn_font,
             cursor="hand2", height=2
         )
-        self.btn_preprocess.pack(fill="x", padx=16, pady=(4, 2))
-        
-        self.btn_preprocess_all = tk.Button(
-            self.frm_controls,
-            text="Preprocess All",
-            command=self._preprocess_all,
-            bg="#1976d2", fg="white",
-            relief="flat", font=btn_font,
-            cursor="hand2", height=2
-        )
-        self.btn_preprocess_all.pack(fill="x", padx=16, pady=(2, 8))
+        self.btn_preprocess.pack(side="left", fill="x", expand=True, padx=(0, 4))
 
 
     # ====================== DETECT ====================== 
@@ -453,13 +462,11 @@ class RightSidebar(tk.Frame):
         if not has_active:
             self._set_btn_state(self.btn_auto, False, "#673ab7")
             self._set_btn_state(self.btn_preprocess, False, "#2196f3")
-            self._set_btn_state(self.btn_preprocess_all, False, "#1976d2")
             self._set_btn_state(self.btn_detect, False, "#4caf50")
             return
 
         self._set_btn_state(self.btn_auto, True, "#673ab7")
         self._set_btn_state(self.btn_preprocess, True, "#2196f3")
-        self._set_btn_state(self.btn_preprocess_all, True, "#1976d2")
         
         active_img = self._active()
         if active_img and active_img.preprocessed.img is not None:

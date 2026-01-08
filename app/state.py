@@ -17,7 +17,7 @@ class ImageState:
     preprocess_params: PreprocessParams = field(default_factory=PreprocessParams)
     detect_params: DetectParams = field(default_factory=DetectParams)
     custom = False
-    auto_info = ""
+    info = ""
 
 
 class AppState:

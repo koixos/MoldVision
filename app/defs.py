@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 import numpy as np
 
-EXTS = (".png", ".jpg", ".jpeg")
+
+EXTS = (
+    ".png", 
+    ".jpg", 
+    ".jpeg"
+)
 
 PREPROCESS_METHODS = [
     "weighted",
@@ -63,4 +68,3 @@ class DetectParams:
     edge_t2: int = 150
     edge_kernel: int = 9
     edge_density_th: int = 20
-    ksize: int = 9

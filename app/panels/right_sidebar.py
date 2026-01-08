@@ -29,8 +29,33 @@ class RightSidebar(tk.Frame):
     # ====================== UI ====================== 
 
     def _build_ui(self):
+        # Create a canvas with scrollbar for the entire sidebar
+        self.canvas = tk.Canvas(self, bg="#f4f4f4", highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview, width=12)
+        self.scrollable_frame = tk.Frame(self.canvas, bg="#f4f4f4")
+        
+        # Configure canvas scrolling
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Pack canvas and scrollbar - scrollbar on top (overlay style)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.place(relx=1.0, rely=0, relheight=1.0, anchor="ne")
+        
+        # Bind mouse wheel scrolling
+        self._bind_mousewheel()
+        
+        # Adjust canvas window width when canvas resizes
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        
+        # Now build content inside scrollable_frame
         title = tk.Label(
-            self,
+            self.scrollable_frame,
             text="Settings",
             bg="#f4f4f4",
             fg="#222",
@@ -40,24 +65,44 @@ class RightSidebar(tk.Frame):
 
         # Global Customize Toggle
         self.cbtn_custom = tk.Checkbutton(
-            self, text="Customize Parameters", variable=self.custom_var,
+            self.scrollable_frame, text="Customize Parameters", variable=self.custom_var,
             bg="#f4f4f4", command=self._update_controls_state
         )
         self.cbtn_custom.pack(anchor="w", padx=16, pady=(0, 8))
 
+        # Main Controls Container
+        self.frm_controls = tk.Frame(self.scrollable_frame, bg="#f4f4f4")
+        # Initially hidden, will be packed in _update_controls_state
+        
         self._preprocess_section()
         self._divider()
         self._detect_section()
-        self._divider()
+        self._advanced_detect_section()
+        
         self._main_actions()
         
         self.lbl_info = tk.Label(
-            self, text="", bg="#f4f4f4", fg="#666", font=("Segoe UI", 9)
+            self.scrollable_frame, text="", bg="#f4f4f4", fg="#666", font=("Segoe UI", 9)
         )
         self.lbl_info.pack(side="bottom", pady=8)
+    
+    def _on_canvas_configure(self, event):
+        # Make the canvas window match the canvas width
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
+    
+    def _bind_mousewheel(self):
+        # Bind mouse wheel to canvas scrolling
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind to the main frame and all children
+        self.bind_all("<MouseWheel>", _on_mousewheel)
+    
+    def _unbind_mousewheel(self):
+        self.unbind_all("<MouseWheel>")
 
     def _main_actions(self):
-        frame = tk.Frame(self, bg="#f4f4f4")
+        frame = tk.Frame(self.scrollable_frame, bg="#f4f4f4")
         frame.pack(side="bottom", fill="x", padx=16, pady=16)
 
         # preprocess/detect all btns
@@ -72,7 +117,6 @@ class RightSidebar(tk.Frame):
         btn_menu.pack(side="right")
         
         self.menu_actions = tk.Menu(self, tearoff=0)
-        self.menu_actions.add_command(label="Preprocess All", command=self._preprocess_all)
         self.menu_actions.add_command(label="Detect All", command=self._detect_all)
         
         def show_menu(e):
@@ -94,15 +138,7 @@ class RightSidebar(tk.Frame):
             cursor="hand2", height=2
         )
 
-        # custom preprocess btn
-        self.btn_preprocess = tk.Button(
-            self.actions_container,
-            text="Preprocess",
-            command=self._preprocess_active, 
-            bg="#2196f3", fg="white",
-            relief="flat", font=btn_font,
-            cursor="hand2", height=2
-        )
+        # Preprocess button moved to preprocess section
 
         # custom detect btn
         self.btn_detect = tk.Button(
@@ -116,14 +152,14 @@ class RightSidebar(tk.Frame):
 
 
     def _divider(self):
-        tk.Frame(self, height=1, bg="#cccccc").pack(fill="x", padx=16, pady=12)
+        tk.Frame(self.frm_controls, height=1, bg="#cccccc").pack(fill="x", padx=16, pady=12)
 
 
     # ====================== PREPROCESS ====================== 
 
     def _preprocess_section(self):
         lbl = tk.Label(
-            self,
+            self.frm_controls,
             text="Preprocess Parameters Customization",
             bg="#f4f4f4",
             fg="#444",
@@ -138,19 +174,22 @@ class RightSidebar(tk.Frame):
         
         self.cb_gray_method = self._dropdown(
             "Grayscale Method", self.gray_method_var,
-            PREPROCESS_METHODS 
+            PREPROCESS_METHODS, parent=self.frm_controls
         )
         
         # CLAHE
         self.cbtn_clahe = tk.Checkbutton(
-            self, text="Use CLAHE (Contrast Limited Adaptive Histogram Equalization)", variable=self.use_clahe_var,
+            self.frm_controls, text="Use CLAHE (Contrast Limited Adaptive Histogram Equalization)", variable=self.use_clahe_var,
             bg="#f4f4f4", command=self._on_preprocess_change
         )
         self.cbtn_clahe.pack(anchor="w", padx=16, pady=4)
 
-        self.frm_clahe = tk.Frame(self, bg="#f4f4f4")
-        self.frm_clahe.pack(fill="x")
+        self.frm_clahe_container = tk.Frame(self.frm_controls, bg="#f4f4f4")
+        self.frm_clahe_container.pack(fill="x")
 
+        self.frm_clahe = tk.Frame(self.frm_clahe_container, bg="#f4f4f4")
+        # Managed by visibility
+        
         self.sc_clahe_clip = self._slider("Clip Limit", self.clahe_clip_var, 1.0, 10.0, step=0.1, parent=self.frm_clahe)
         self.sc_clahe_grid = self._slider("Grid Size", self.clahe_grid_var, 2, 32, parent=self.frm_clahe)
         
@@ -160,14 +199,36 @@ class RightSidebar(tk.Frame):
         self.clahe_clip_var.trace_add("write", self._on_preprocess_change)
         self.clahe_grid_var.trace_add("write", self._on_preprocess_change)
 
-        self._row_buttons(("Restore Default", self._restore_preprocess))
+        self._row_buttons(("Restore Default", self._restore_preprocess), parent=self.frm_controls)
+        
+        # Preprocess Action Buttons
+        btn_font = ("Segoe UI", 11, "bold")
+        self.btn_preprocess = tk.Button(
+            self.frm_controls,
+            text="Preprocess",
+            command=self._preprocess_active,
+            bg="#2196f3", fg="white",
+            relief="flat", font=btn_font,
+            cursor="hand2", height=2
+        )
+        self.btn_preprocess.pack(fill="x", padx=16, pady=(4, 2))
+        
+        self.btn_preprocess_all = tk.Button(
+            self.frm_controls,
+            text="Preprocess All",
+            command=self._preprocess_all,
+            bg="#1976d2", fg="white",
+            relief="flat", font=btn_font,
+            cursor="hand2", height=2
+        )
+        self.btn_preprocess_all.pack(fill="x", padx=16, pady=(2, 8))
 
 
     # ====================== DETECT ====================== 
 
     def _detect_section(self):
         lbl = tk.Label(
-            self,
+            self.frm_controls,
             text="Mold Detection Parameters Customization",
             bg="#f4f4f4",
             fg="#444",
@@ -175,102 +236,37 @@ class RightSidebar(tk.Frame):
         )
         lbl.pack(anchor="w", padx=16, pady=(8, 4))
 
-        # --- VARS ---
         self.method_var = tk.StringVar(value=DEF_DETECT_PARAMS.method)
-        
-        # Variance / Generic
-        self.th_mode_var = tk.StringVar(value=DEF_DETECT_PARAMS.th_mode)
-        self.fixed_th_var = tk.IntVar(value=DEF_DETECT_PARAMS.fixed_th)
-        self.zk_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.z_k)
-        self.percentile_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.percentile)
-        
-        # LBP
-        self.use_lbp_var = tk.BooleanVar(value=DEF_DETECT_PARAMS.use_lbp)
-        self.lbp_rad_var = tk.IntVar(value=DEF_DETECT_PARAMS.lbp_rad)
-        self.lbp_points_var = tk.IntVar(value=DEF_DETECT_PARAMS.lbp_points)
-        
-        # Filters
-        self.min_area_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.min_area)
-        self.max_area_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.max_area)
         self.elemsize_var = tk.IntVar(value=DEF_DETECT_PARAMS.elemsize)
         self.open_iter_var = tk.IntVar(value=DEF_DETECT_PARAMS.open_iter)
         self.close_iter_var = tk.IntVar(value=DEF_DETECT_PARAMS.close_iter)
 
-        # Adaptive
-        self.block_size_var = tk.IntVar(value=DEF_DETECT_PARAMS.block_size)
-        self.c_var = tk.IntVar(value=DEF_DETECT_PARAMS.c)
-
-        # Edge
-        self.edge_t1_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_t1)
-        self.edge_t2_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_t2)
-        self.edge_kernel_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_kernel)
-        self.edge_density_th_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_density_th)
-
-
-        # --- WIDGETS ---
         self.cb_detect_method = self._dropdown(
             "Detection Method", self.method_var,
-            DETECT_METHODS
+            DETECT_METHODS, parent=self.frm_controls
         )
-
         
-        # Container frames for dynamic visibility
-        self.frm_variance_opts = tk.Frame(self, bg="#f4f4f4")
-        self.frm_adaptive_opts = tk.Frame(self, bg="#f4f4f4")
-        self.frm_edge_opts = tk.Frame(self, bg="#f4f4f4")
-        
-        # -- Variance Vars --
-        self.cb_th_mode = self._dropdown("Threshold Mode", self.th_mode_var, TH_MODES, parent=self.frm_variance_opts)
-        self.sc_fixed_th = self._slider("Fixed Threshold", self.fixed_th_var, 0, 255, parent=self.frm_variance_opts)
-        self.sc_zk = self._slider("Z-Score K", self.zk_var, 0.1, 10.0, step=0.1, parent=self.frm_variance_opts)
-        self.sc_percentile = self._slider("Percentile", self.percentile_var, 1.0, 99.9, step=0.5, parent=self.frm_variance_opts)
-
-        self.cbtn_lbp = tk.Checkbutton(
-            self.frm_variance_opts, text="Use LBP Filter", variable=self.use_lbp_var,
-            bg="#f4f4f4", command=self._on_detect_change
-        )
-        self.cbtn_lbp.pack(anchor="w", padx=16, pady=4)
-        
-        self.sc_lbp_rad = self._slider("LBP Radius", self.lbp_rad_var, 1, 10, parent=self.frm_variance_opts)
-        self.sc_lbp_points = self._slider("LBP Points", self.lbp_points_var, 4, 32, parent=self.frm_variance_opts)
-
-        # -- Adaptive Vars --
-        self.sc_block_size = self._slider("Block Size", self.block_size_var, 3, 99, parent=self.frm_adaptive_opts)
-        self.sc_c = self._slider("C Constant", self.c_var, -20, 20, parent=self.frm_adaptive_opts)
-
-        # -- Edge Vars --
-        self.sc_edge_t1 = self._slider("Canny T1", self.edge_t1_var, 0, 255, parent=self.frm_edge_opts)
-        self.sc_edge_t2 = self._slider("Canny T2", self.edge_t2_var, 0, 255, parent=self.frm_edge_opts)
-        self.sc_edge_k = self._slider("Filter Kernel", self.edge_kernel_var, 3, 31, parent=self.frm_edge_opts)
-        self.sc_edge_dth = self._slider("Density Th", self.edge_density_th_var, 0, 255, parent=self.frm_edge_opts)
+        # Container for Dynamic Detect Options
+        self.frm_detect_options = tk.Frame(self.frm_controls, bg="#f4f4f4")
+        self.frm_detect_options.pack(fill="x")
 
         # -- Common --
-        self.frm_common = tk.Frame(self, bg="#f4f4f4")
-        self.sc_min_area = self._slider("Min Area Ratio", self.min_area_var, 0.0, 0.1, step=0.0001, parent=self.frm_common)
-        self.sc_max_area = self._slider("Max Area Ratio", self.max_area_var, 0.0, 1.0, step=0.01, parent=self.frm_common)
+        self.frm_common = tk.Frame(self.frm_detect_options, bg="#f4f4f4")
+        
         self.sc_elemsize = self._slider("Morph. Size", self.elemsize_var, 1, 31, parent=self.frm_common)
         self.sc_opener = self._slider("Open Iter", self.open_iter_var, 0, 10, parent=self.frm_common)
         self.sc_closer = self._slider("Close Iter", self.close_iter_var, 0, 10, parent=self.frm_common)
 
         # Triggers
-        self.method_var.trace_add("write", self._on_detect_change)
-        self.th_mode_var.trace_add("write", self._on_detect_change)
-        
         all_vars = [
-            self.fixed_th_var, self.zk_var, self.percentile_var,
-            self.use_lbp_var, self.lbp_rad_var, self.lbp_points_var,
-            self.min_area_var, self.max_area_var, self.elemsize_var, 
-            self.open_iter_var, self.close_iter_var,
-            self.block_size_var, self.c_var,
-            self.edge_t1_var, self.edge_t2_var, self.edge_kernel_var, self.edge_density_th_var
+            self.method_var,
+            self.elemsize_var, self.open_iter_var, self.close_iter_var,
         ]
         for v in all_vars:
             v.trace_add("write", self._on_detect_change)
-
         
-        # Histogram Button
         self.btn_hist = tk.Button(
-            self,
+            self.frm_controls,
             text="Plot Histogram",
             command=self._plot_histogram,
             bg="#e0e0e0", 
@@ -279,7 +275,95 @@ class RightSidebar(tk.Frame):
         )
         self.btn_hist.pack(anchor="w", padx=16, pady=4, fill="x")
 
-        self._row_buttons(("Restore Default", self._restore_detect))
+        self._row_buttons(("Restore Default", self._restore_detect), parent=self.frm_controls)
+
+    
+    def _advanced_detect_section(self):
+        # variance method
+        self.th_mode_var = tk.StringVar(value=DEF_DETECT_PARAMS.th_mode)
+        self.fixed_th_var = tk.IntVar(value=DEF_DETECT_PARAMS.fixed_th)
+        self.zk_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.z_k)
+        self.percentile_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.percentile)        
+        self.min_area_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.min_area)
+        self.max_area_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.max_area)
+        # lbp optional
+        self.use_lbp_var = tk.BooleanVar(value=DEF_DETECT_PARAMS.use_lbp)
+        self.lbp_rad_var = tk.IntVar(value=DEF_DETECT_PARAMS.lbp_rad)
+        self.lbp_points_var = tk.IntVar(value=DEF_DETECT_PARAMS.lbp_points)
+        self.lbp_uniform_th_var = tk.DoubleVar(value=DEF_DETECT_PARAMS.lbp_uniform_th)
+
+        # adaptive th method
+        self.block_size_var = tk.IntVar(value=DEF_DETECT_PARAMS.block_size)
+        self.c_var = tk.IntVar(value=DEF_DETECT_PARAMS.c)
+
+        # edge density method
+        self.edge_t1_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_t1)
+        self.edge_t2_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_t2)
+        self.edge_kernel_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_kernel)
+        self.edge_density_th_var = tk.IntVar(value=DEF_DETECT_PARAMS.edge_density_th)
+
+        # -- Variance Vars --
+        self.frm_variance_opts = tk.Frame(self.frm_detect_options, bg="#f4f4f4")
+        
+        self.cb_th_mode = self._dropdown("Threshold Mode", self.th_mode_var, TH_MODES, parent=self.frm_variance_opts)
+        
+        # Create separate containers for each threshold mode parameter
+        self.frm_fixed_th = tk.Frame(self.frm_variance_opts, bg="#f4f4f4")
+        self.sc_fixed_th = self._slider("Fixed Threshold", self.fixed_th_var, 0, 255, parent=self.frm_fixed_th)
+        
+        self.frm_zk = tk.Frame(self.frm_variance_opts, bg="#f4f4f4")
+        self.sc_zk = self._slider("Z-Score K", self.zk_var, 0.1, 10.0, step=0.1, parent=self.frm_zk)
+        
+        self.frm_percentile = tk.Frame(self.frm_variance_opts, bg="#f4f4f4")
+        self.sc_percentile = self._slider("Percentile", self.percentile_var, 1.0, 99.9, step=0.5, parent=self.frm_percentile)
+        
+        self.sc_min_area = self._slider("Min Area Ratio", self.min_area_var, 0.0, 0.1, step=0.0001, parent=self.frm_variance_opts)
+        self.sc_max_area = self._slider("Max Area Ratio", self.max_area_var, 0.0, 1.0, step=0.01, parent=self.frm_variance_opts)
+
+        self.cbtn_lbp = tk.Checkbutton(
+            self.frm_variance_opts, text="Use LBP (Local Binary Pattern) Filter", variable=self.use_lbp_var,
+            bg="#f4f4f4", command=self._on_detect_change
+        )
+        self.cbtn_lbp.pack(anchor="w", padx=16, pady=4)
+        
+        self.frm_lbp_opts = tk.Frame(self.frm_variance_opts, bg="#f4f4f4")
+        
+        self.sc_lbp_rad = self._slider("LBP Radius", self.lbp_rad_var, 1, 10, parent=self.frm_lbp_opts)
+        self.sc_lbp_points = self._slider("LBP Points", self.lbp_points_var, 4, 32, parent=self.frm_lbp_opts)
+        self.sc_lbp_th = self._slider("LBP Uniformity Th", self.lbp_uniform_th_var, 0.0, 1.0, step=0.01, parent=self.frm_lbp_opts)
+
+        # -- Adaptive Vars --
+        self.frm_adaptive_opts = tk.Frame(self.frm_detect_options, bg="#f4f4f4")
+
+        self.sc_block_size = self._slider("Block Size", self.block_size_var, 3, 99, parent=self.frm_adaptive_opts)
+        self.sc_c = self._slider("C Constant", self.c_var, -20, 20, parent=self.frm_adaptive_opts)
+
+        # -- Edge Vars --
+        self.frm_edge_opts = tk.Frame(self.frm_detect_options, bg="#f4f4f4")
+
+        self.sc_edge_t1 = self._slider("Canny T1", self.edge_t1_var, 0, 255, parent=self.frm_edge_opts)
+        self.sc_edge_t2 = self._slider("Canny T2", self.edge_t2_var, 0, 255, parent=self.frm_edge_opts)
+        self.sc_edge_k = self._slider("Filter Kernel", self.edge_kernel_var, 3, 31, parent=self.frm_edge_opts)
+        self.sc_edge_dth = self._slider("Density Th", self.edge_density_th_var, 0, 255, parent=self.frm_edge_opts)
+
+        self.lbl_advanced = tk.Label(
+            self.frm_detect_options,
+            text="Advanced Settings",
+            bg="#f4f4f4",
+            fg="#666",
+            font=("Segoe UI", 10, "bold")
+        )
+
+        # Triggers
+        all_vars = [
+            self.th_mode_var, self.fixed_th_var, self.zk_var, self.percentile_var,
+            self.min_area_var, self.max_area_var, #self.scales_var
+            self.use_lbp_var, self.lbp_rad_var, self.lbp_points_var, self.lbp_uniform_th_var,
+            self.block_size_var, self.c_var,
+            self.edge_t1_var, self.edge_t2_var, self.edge_kernel_var, self.edge_density_th_var
+        ]
+        for v in all_vars:
+            v.trace_add("write", self._on_detect_change)
 
 
     # ====================== WIDGET HELPERS ====================== 
@@ -318,8 +402,8 @@ class RightSidebar(tk.Frame):
         return sc
     
 
-    def _row_buttons(self, *buttons):
-        frame = tk.Frame(self, bg="#f4f4f4")
+    def _row_buttons(self, *buttons, parent=None):
+        frame = tk.Frame(parent or self, bg="#f4f4f4")
         frame.pack(fill="x", padx=16, pady=6)
 
         for text, cmd in buttons:
@@ -342,7 +426,7 @@ class RightSidebar(tk.Frame):
     def _update_ui_state(self):
         self._update_button_states()
         
-        # Sync Custom Toggle (Safe Update)
+        # Sync Custom Toggle
         active_img = self._active()
         if active_img:
             self._updating_flag = True
@@ -359,11 +443,9 @@ class RightSidebar(tk.Frame):
         has_active = (self.state.images and self.state.active_index != -1)
         
         self.btn_auto.pack_forget()
-        self.btn_preprocess.pack_forget()
         self.btn_detect.pack_forget()
 
         if self.custom_var.get():
-            self.btn_preprocess.pack(fill="x", pady=(0, 8))
             self.btn_detect.pack(fill="x")
         else:
             self.btn_auto.pack(fill="x")
@@ -371,11 +453,13 @@ class RightSidebar(tk.Frame):
         if not has_active:
             self._set_btn_state(self.btn_auto, False, "#673ab7")
             self._set_btn_state(self.btn_preprocess, False, "#2196f3")
+            self._set_btn_state(self.btn_preprocess_all, False, "#1976d2")
             self._set_btn_state(self.btn_detect, False, "#4caf50")
             return
 
         self._set_btn_state(self.btn_auto, True, "#673ab7")
         self._set_btn_state(self.btn_preprocess, True, "#2196f3")
+        self._set_btn_state(self.btn_preprocess_all, True, "#1976d2")
         
         active_img = self._active()
         if active_img and active_img.preprocessed.img is not None:
@@ -395,78 +479,95 @@ class RightSidebar(tk.Frame):
         if self._updating_flag: return
         is_custom = self.custom_var.get()
         
+        # Main Container Visibility
+        if is_custom:
+            self.frm_controls.pack(fill="both", expand=True)
+        else:
+            self.frm_controls.pack_forget()
+            return # Skip unpacking inside if hidden
+
         active_img = self._active()
         has_prep = (active_img is not None and active_img.preprocessed.img is not None)
 
         # Preprocess State
-        prep_state = "normal" if is_custom else "disabled"
-        self.cb_gray_method.config(state="readonly" if is_custom else "disabled")
-        self.cbtn_clahe.config(state=prep_state)
+        # Since we just hide everything if not custom, we can assume 'normal' here? 
+        # Actually logic kept 'is_custom' check for states. 
+        # We can keep updating states just in case for robustness.
         
         # CLAHE Visibility
-        if is_custom and self.use_clahe_var.get():
+        if self.use_clahe_var.get():
             self.frm_clahe.pack(fill="x")
-            for w in (self.sc_clahe_clip, self.sc_clahe_grid):
-                w.config(state="normal")
         else:
             self.frm_clahe.pack_forget()
 
-
         # Detect State
-        det_enabled = is_custom and has_prep
+        det_enabled = has_prep 
         det_state = "normal" if det_enabled else "disabled"
         det_cb_state = "readonly" if det_enabled else "disabled"
         
         self.cb_detect_method.config(state=det_cb_state)
+        # Verify btn_hist state
         self.btn_hist.config(state=det_state)
 
-        # Visibility Logic
-        self.frm_variance_opts.pack_forget()
-        self.frm_adaptive_opts.pack_forget()
-        self.frm_edge_opts.pack_forget()
-        self.frm_common.pack_forget()
-
+        # Reset packing of dynamic detect options
+        for f in (self.frm_variance_opts, self.frm_adaptive_opts, self.frm_edge_opts, self.frm_common):
+            f.pack_forget()
+        
+        self.lbl_advanced.pack_forget()
+        self.frm_lbp_opts.pack_forget()
+        self.frm_fixed_th.pack_forget()
+        self.frm_zk.pack_forget()
+        self.frm_percentile.pack_forget()
+        
+        # NOTE: Because sliders are inside frames that we pack/unpack, we don't need to unpack individual sliders 
+        # unless they are conditional inside their frames (like fixed_th vs zk).
+        # Variance opts has conditional children
+        
         method = self.method_var.get()
         
-        if det_enabled:
-            # Common params usually valid for all (morphology, area)
-            self.frm_common.pack(fill="x")
-            
-            if method in ("variance", "var_lbp"):
-                self.frm_variance_opts.pack(fill="x")
-                
-                # Sub-visibility for Variance
-                th_mode = self.th_mode_var.get()
-                if th_mode == "fixed":
-                    self.sc_fixed_th.pack(fill="x", padx=16, pady=4)
-                    self.sc_zk.pack_forget()
-                    self.sc_percentile.pack_forget()
-                elif th_mode == "zscore":
-                    self.sc_fixed_th.pack_forget()
-                    self.sc_zk.pack(fill="x", padx=16, pady=4)
-                    self.sc_percentile.pack_forget()
-                else:
-                    self.sc_fixed_th.pack_forget()
-                    self.sc_zk.pack_forget()
-                    self.sc_percentile.pack(fill="x", padx=16, pady=4)
+        # Packing Order Logic inside frm_detect_options
+        
+        # 1. Common
+        self.frm_common.pack(fill="x")
+        
+        # 2. Advanced Header
+        self.lbl_advanced.pack(anchor="w", padx=16, pady=(12, 4))
 
-            elif method == "adaptive":
-                self.frm_adaptive_opts.pack(fill="x")
+        # 3. Method Specific
+        if method == "variance":
+            self.frm_variance_opts.pack(fill="x")
             
-            elif method in ("edge", "saturation"):
-                self.frm_edge_opts.pack(fill="x")
+            # Logic for Variance internal packing - show only the relevant threshold parameter
+            th_mode = self.th_mode_var.get()
+            if th_mode == "fixed":
+                self.frm_fixed_th.pack(fill="x")
+            elif th_mode == "zscore":
+                self.frm_zk.pack(fill="x")
+            else:
+                self.frm_percentile.pack(fill="x")
 
-            # Enable/Disable all children of visible frames
-            for frm in (self.frm_variance_opts, self.frm_adaptive_opts, self.frm_edge_opts, self.frm_common):
-                for child in frm.winfo_children():
-                    if isinstance(child, (tk.Scale, tk.Checkbutton, tk.Entry, ttk.Combobox)):
-                        child.configure(state=det_state)
-                    # For sliders which are frames in my helper...
-                    if isinstance(child, tk.Frame):
-                        for sub in child.winfo_children():
-                             if isinstance(sub, (tk.Scale, tk.Label)):
-                                 try: sub.configure(state=det_state)
-                                 except: pass
+            if self.use_lbp_var.get():
+                self.frm_lbp_opts.pack(fill="x")
+        elif method == "adaptive":
+            self.frm_adaptive_opts.pack(fill="x")
+        elif method == "edge":
+            self.frm_edge_opts.pack(fill="x")
+        elif method == "saturation":
+            self.frm_edge_opts.pack(fill="x")
+
+
+        # Enable/Disable logic RECURSIVE
+        for frm in (self.frm_variance_opts, self.frm_adaptive_opts, self.frm_edge_opts, self.frm_common):
+            for child in frm.winfo_children():
+                if isinstance(child, (tk.Scale, tk.Checkbutton, ttk.Combobox)):
+                    child.configure(state=det_state)
+                elif isinstance(child, tk.Entry):
+                    child.configure(state=det_state)
+                elif isinstance(child, tk.Frame):
+                    for sub in child.winfo_children():
+                        if isinstance(sub, (tk.Scale, tk.Entry, tk.Checkbutton)):
+                            try: sub.configure(state=det_state)
+                            except: pass
 
         self._update_all_vars_from_model()
 
@@ -501,22 +602,20 @@ class RightSidebar(tk.Frame):
         img = self._active()
         if img is None: return
         self._write_preprocess_params(img)
+        self._update_controls_state()
 
     
     def _on_detect_change(self, *args):
         img = self._active()
         if img is None: return
         self._write_detect_params(img)
+        self._update_controls_state()
 
 
     def _update_all_vars_from_model(self):
-        # We might want to refresh sliders if model changed externally 
-        # But usually UI drives Model. 
-        # This is strictly when we switch images or toggle custom.
         img = self._active()
         if not img or self._updating_flag: return
 
-        # IMPORTANT: Set _updating_flag to avoid trigger loops if we set vars here
         self._updating_flag = True
         try:
             p = img.preprocess_params
@@ -534,6 +633,7 @@ class RightSidebar(tk.Frame):
             self.use_lbp_var.set(d.use_lbp)
             self.lbp_rad_var.set(d.lbp_rad)
             self.lbp_points_var.set(d.lbp_points)
+            self.lbp_uniform_th_var.set(d.lbp_uniform_th)
             self.min_area_var.set(d.min_area)
             self.max_area_var.set(d.max_area)
             self.elemsize_var.set(d.elemsize)
@@ -545,6 +645,14 @@ class RightSidebar(tk.Frame):
             self.edge_t2_var.set(d.edge_t2)
             self.edge_kernel_var.set(d.edge_kernel)
             self.edge_density_th_var.set(d.edge_density_th)
+            # scales -> string
+            '''
+            sc = d.scales
+            if sc:
+                self.scales_var.set(",".join(map(str, sc)))
+            else:
+                self.scales_var.set("")
+            '''
         except Exception as e:
             print(f"Update VARS error: {e}")
         finally:
@@ -570,6 +678,7 @@ class RightSidebar(tk.Frame):
         d.use_lbp = self.use_lbp_var.get()
         d.lbp_rad = self.lbp_rad_var.get()
         d.lbp_points = self.lbp_points_var.get()
+        d.lbp_uniform_th = self.lbp_uniform_th_var.get()
         d.min_area = self.min_area_var.get()
         d.max_area = self.max_area_var.get()
         d.elemsize = self.elemsize_var.get()
@@ -581,7 +690,22 @@ class RightSidebar(tk.Frame):
         d.edge_t2 = self.edge_t2_var.get()
         d.edge_kernel = self.edge_kernel_var.get()
         d.edge_density_th = self.edge_density_th_var.get()
-
+        
+        # parse scales
+        '''
+        sc_str = self.scales_var.get().strip()
+        if not sc_str:
+            d.scales = None
+        else:
+            try:
+                valid = []
+                for p in sc_str.split(','):
+                    val = int(p.strip())
+                    if val > 0: valid.append(val)
+                d.scales = valid if valid else None
+            except:
+                d.scales = None
+        '''
 
     def _restore_preprocess(self):
         self._updating_flag = True
@@ -603,6 +727,8 @@ class RightSidebar(tk.Frame):
         self.use_lbp_var.set(DEF_DETECT_PARAMS.use_lbp)
         self.lbp_rad_var.set(DEF_DETECT_PARAMS.lbp_rad)
         self.lbp_points_var.set(DEF_DETECT_PARAMS.lbp_points)
+        self.lbp_uniform_th_var.set(DEF_DETECT_PARAMS.lbp_uniform_th)
+        #self.scales_var.set("") # Default is None logic
         self.min_area_var.set(DEF_DETECT_PARAMS.min_area)
         self.max_area_var.set(DEF_DETECT_PARAMS.max_area)
         self.elemsize_var.set(DEF_DETECT_PARAMS.elemsize)

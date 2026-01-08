@@ -117,7 +117,7 @@ class RightSidebar(tk.Frame):
         btn_menu.pack(side="right")
         
         self.menu_actions = tk.Menu(self, tearoff=0)
-        self.menu_actions.add_command(label="Detect All", command=self._detect_all)
+        self.menu_actions.add_command(label="Auto Detect All", command=self._auto_detect_all)
         
         def show_menu(e):
             self.menu_actions.post(e.x_root, e.y_root)
@@ -792,6 +792,13 @@ class RightSidebar(tk.Frame):
     def _auto_detect(self):
         self._preprocess_active()
         self._detect_active()
+
+    def _auto_detect_all(self):
+        """Run auto detect (preprocess + detect) on all images"""
+        for img in self.state.images:
+            self._run_preprocess(img)
+            self._run_detect(img)
+        self.state._notify()
 
 
     def _plot_histogram(self):
